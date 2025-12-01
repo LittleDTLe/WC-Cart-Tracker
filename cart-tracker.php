@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: WC All Cart Tracker
- * Plugin URI: https://yoursite.com/wc-all-cart-tracker
+ * Plugin URI: https://github.com/LittleDTLe/WC-Cart-Tracker/issues/new
  * Description: Tracks all active WooCommerce carts in real-time, including guest and registered user carts.
  * Version: 1.0.0
- * Author: Your Name
- * Author URI: https://yoursite.com
+ * Author: Panagiotis Drougas
+ * Author URI: https://github.com/LittleDTLe
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: wc-all-cart-tracker
