@@ -1,13 +1,21 @@
 # WC All Cart Tracker
 
 **Contributors:** Panagiotis Drougas
+
 **Tags:** woocommerce, cart, analytics, conversion, tracking, guest, live carts, abandoned carts
+
 **Requires at least:** 5.8
+
 **Tested up to:** 6.5.5
+
 **Requires PHP:** 7.4
+
 **WC requires at least:** 5.0
+
 **WC tested up to:** 9.0
+
 **License:** GPL v2 or later
+
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
 
 Tracks every active user cart—including logged-in users and guests—providing live cart data, powerful analytics, conversion rates, and revenue potential in a dedicated dashboard.
