@@ -20,7 +20,6 @@ jQuery(document).ready(function($) {
 
             let value;
 
-            // CRITICAL FIX: Determine if the value is raw data or formatted HTML
             if (key.includes('_html')) {
                 // Currency fields: Get the formatted HTML string directly from the data object
                 value = data[key]; 
@@ -31,7 +30,6 @@ jQuery(document).ready(function($) {
 
             if (value !== undefined) {
                 if (key.includes('_html')) {
-                    // FIX: Use .html() method for formatted currency strings
                     $(this).html(value); 
                 } else if (key.includes('rate') || key.includes('distribution')) {
                     // Inject percentage values
@@ -59,7 +57,7 @@ jQuery(document).ready(function($) {
         refreshButton.prop('disabled', false).text('Refresh Data');
     }
 
-    // --- Core AJAX Logic (Remains unchanged) ---
+    // --- Core AJAX Logic ---
     function refreshDashboard() {
         refreshButton.prop('disabled', true).text('Refreshing...');
 
