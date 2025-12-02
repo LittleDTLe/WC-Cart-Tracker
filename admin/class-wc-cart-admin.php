@@ -46,8 +46,6 @@ class WC_Cart_Tracker_Admin
             return;
         }
 
-        // FIX: Enqueue the default WordPress admin stylesheet to load core styling,
-        // including the CSS sprites for the sorting arrows.
         wp_enqueue_style('wp-admin');
 
         wp_enqueue_style(
@@ -65,11 +63,11 @@ class WC_Cart_Tracker_Admin
             true
         );
         wp_localize_script(
-            'wc-cart-tracker-admin', // Handle of the enqueued script
-            'wcat_ajax', // The JavaScript object name (e.g., wcat_ajax.ajax_url)
+            'wc-cart-tracker-admin',
+            'wcat_ajax',
             array(
-                'ajax_url' => admin_url('admin-ajax.php'), // Standard WordPress AJAX endpoint
-                'nonce' => wp_create_nonce('wcat_refresh_nonce'), // Security token
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wcat_refresh_nonce'),
             )
         );
     }
@@ -88,7 +86,6 @@ class WC_Cart_Tracker_Admin
     {
         check_ajax_referer('wcat_refresh_nonce', 'security');
 
-        // Fetch data (identical logic as admin-dashboard.php start)
         global $wpdb;
         $table_name = WC_Cart_Tracker_Database::get_table_name();
         $days = 30; // Default filter value
