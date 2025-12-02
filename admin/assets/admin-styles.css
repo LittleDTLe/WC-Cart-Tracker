@@ -1,15 +1,14 @@
 /**
- * Admin Styles for WC All Cart Tracker.
- *
+ * WC All Cart Tracker - Admin Styles
+ * 
  * @package WC_All_Cart_Tracker
  */
 
-/* --- General Layout and Spacing --- */
+/* Analytics Dashboard */
 .wc-cart-analytics-dashboard {
 	margin: 20px 0;
 }
 
-/* --- Grid Layouts --- */
 .wc-cart-metrics,
 .wc-cart-metrics-detailed {
 	display: grid;
@@ -25,47 +24,14 @@
 	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
-/* --- Metric Card Styling --- */
 .metric-card {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	padding: 15px;
 	border-radius: 4px;
-	/* ADDED: Crucial for aligning elements vertically */
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
 }
 
-/* ADDED: Styling for inner text within cards */
-.metric-card h3 {
-	margin: 0 0 15px 0;
-	font-size: 14px;
-}
-
-/* ADDED: Color-coded left borders for the top metrics */
-/* Conversion Rate */
-.wc-cart-metrics .metric-card:nth-child(1) {
-	border-left: 4px solid #2271b1;
-}
-/* Active Carts */
-.wc-cart-metrics .metric-card:nth-child(2) {
-	border-left: 4px solid #00a32a;
-}
-/* Abandoned Carts */
-.wc-cart-metrics .metric-card:nth-child(3) {
-	border-left: 4px solid #d63638;
-}
-/* Deleted Carts */
-.wc-cart-metrics .metric-card:nth-child(4) {
-	border-left: 4px solid #f0b849;
-}
-/* Revenue Potential */
-.wc-cart-metrics .metric-card:nth-child(5) {
-	border-left: 4px solid #7e3bd0;
-}
-
-/* --- List Table Styling Overrides --- */
+/* Table Styles */
 .wp-list-table th {
 	white-space: nowrap;
 }
@@ -77,28 +43,82 @@
 
 .wp-list-table td ul {
 	margin: 0;
-	/* ADDED: Padding for list items inside tables */
 	padding-left: 20px;
 }
 
-/* ADDED: Styles for sorting links */
-.wp-list-table .sortable a,
-.wp-list-table .sorted a {
+/* Sortable Column Styles */
+.wp-list-table .sortable a {
 	text-decoration: none;
 	color: inherit;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.wp-list-table .sortable a:hover {
+	color: #2271b1;
 }
 
 .wp-list-table .sorted a {
 	color: #2271b1;
 }
 
-/* ADDED: Style for details/summary in history table */
+/* Sorting Indicators */
+.wp-list-table .sortable .sorting-indicator {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	font-size: 14px;
+	line-height: 1;
+	font-weight: bold;
+}
+
+/* Default state - both arrows visible but faded */
+.wp-list-table .sortable .sorting-indicator::before {
+	content: "↕";
+	opacity: 0.3;
+	color: #646970;
+}
+
+/* Ascending state - up arrow only */
+.wp-list-table .sortable.asc .sorting-indicator::before {
+	content: "↑";
+	opacity: 1;
+	color: #2271b1;
+}
+
+/* Descending state - down arrow only */
+.wp-list-table .sortable.desc .sorting-indicator::before {
+	content: "↓";
+	opacity: 1;
+	color: #2271b1;
+}
+
+/* Details/Summary Styles for Cart Contents */
 details summary {
 	outline: none;
 	cursor: pointer;
-	color: #2271b1;
-	font-weight: 600;
+	user-select: none;
 }
+
 details[open] summary {
 	margin-bottom: 10px;
+}
+
+details summary:hover {
+	color: #135e96;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 782px) {
+	.wc-cart-metrics,
+	.wc-cart-metrics-detailed {
+		grid-template-columns: 1fr;
+	}
+
+	.wp-list-table td,
+	.wp-list-table th {
+		padding: 8px;
+		font-size: 14px;
+	}
 }
