@@ -53,6 +53,10 @@ $carts = $wpdb->get_results($wpdb->prepare(
     <div class="wc-cart-analytics-dashboard">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h2 style="margin: 0;"><?php echo esc_html__('Analytics Overview', 'wc-all-cart-tracker'); ?></h2>
+            <div class="tablenav top" style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+                <button id="wcat-manual-refresh"
+                    class="button button-secondary"><?php esc_html_e('Refresh Data', 'wc-all-cart-tracker'); ?></button>
+            </div>
             <div>
                 <label for="days-filter"><?php echo esc_html__('Time Period:', 'wc-all-cart-tracker'); ?></label>
                 <select id="days-filter"
@@ -311,7 +315,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th><?php echo esc_html__('Cart Contents', 'wc-all-cart-tracker'); ?></th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="wcat-active-carts-body">
             <?php if (empty($carts)): ?>
                 <tr>
                     <td colspan="6" style="text-align: center;">
