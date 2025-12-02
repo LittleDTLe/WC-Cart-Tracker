@@ -56,7 +56,7 @@ Upon activation, the plugin automatically creates a new custom table in your dat
 
 Once activated, you can find the cart tracking dashboard under the WooCommerce menu:
 
-1.  Navigate to **WooCommerce > Active Carts**.
+1.  Navigate to **WooCommerce > Cart Tracker**.
 2.  **Analytics Overview:** View the top metrics (Conversion Rate, Revenue Potential, Abandonment Rate) for the selected time period.
 3.  **Active Carts Table:** See a live list of all currently active carts, sorted by last updated time or cart total.
 4.  **WooCommerce > Cart History:** Browse a full history of all carts (Converted, Deleted, or Abandoned) over various time frames, complete with filtering options.
