@@ -1,21 +1,13 @@
 # WC All Cart Tracker
 
 **Contributors:** Panagiotis Drougas
-
-**Tags:** woocommerce, cart, analytics, conversion, tracking, guest, live carts, abandoned carts
-
+**Tags:** woocommerce, cart, analytics, conversion, tracking, guest, live carts, abandoned carts, ajax
 **Requires at least:** 5.8
-
 **Tested up to:** 6.5.5
-
 **Requires PHP:** 7.4
-
 **WC requires at least:** 5.0
-
 **WC tested up to:** 9.0
-
 **License:** GPL v2 or later
-
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
 
 Tracks every active user cart—including logged-in users and guests—providing live cart data, powerful analytics, conversion rates, and revenue potential in a dedicated dashboard.
@@ -29,6 +21,7 @@ The **WC All Cart Tracker** is a high-performance analytics plugin for WooCommer
 ### Key Features
 
 - **Real-Time Cart Tracking:** Logs every `add_to_cart`, quantity change, and item removal event.
+- **Dynamic Dashboard Refresh:** Includes a **"Refresh Data" button** that uses AJAX to update the Active Carts table and all metric cards instantly, eliminating the need for a full page reload.
 - **Comprehensive Customer Data:** Captures Customer Name, Email, and WordPress User ID (if logged in).
 - **Purchase History Integration:** Immediately shows the customer's **Number of Past Purchases** next to their active cart, offering powerful sales context.
 - **In-Depth Analytics Dashboard:** Features conversion rates, abandonment rates, average cart value (ACV), and revenue potential.
@@ -56,10 +49,11 @@ Upon activation, the plugin automatically creates a new custom table in your dat
 
 Once activated, you can find the cart tracking dashboard under the WooCommerce menu:
 
-1.  Navigate to **WooCommerce > Cart Tracker**.
-2.  **Analytics Overview:** View the top metrics (Conversion Rate, Revenue Potential, Abandonment Rate) for the selected time period.
-3.  **Active Carts Table:** See a live list of all currently active carts, sorted by last updated time or cart total.
-4.  **WooCommerce > Cart History:** Browse a full history of all carts (Converted, Deleted, or Abandoned) over various time frames, complete with filtering options.
+1.  Navigate to **WooCommerce > Active Carts**.
+2.  **Live Monitoring:** View the Active Carts table and Analytics Overview. To get the absolute latest data without leaving the page, click the **"Refresh Data" button** at the top of the table.
+3.  **Analytics Overview:** View the top metrics (Conversion Rate, Revenue Potential, Abandonment Rate) for the selected time period.
+4.  **Active Carts Table:** See a live list of all currently active carts, sortable by last updated time or cart total.
+5.  **WooCommerce > Cart History:** Browse a full history of all carts (Converted, Deleted, or Abandoned) over various time frames, complete with filtering options.
 
 ---
 
@@ -73,7 +67,7 @@ The plugin is built with a clean, modular structure:
 | **Tracking**    | Hooks into WooCommerce actions (`woocommerce_add_to_cart`, `woocommerce_thankyou`) to gather and sanitize data. | `includes/class-wc-cart-tracking.php`                  |
 | **Database**    | Manages custom table creation, dropping, and all `INSERT`/`UPDATE`/`SELECT` operations.                         | `includes/class-wc-cart-database.php`                  |
 | **Analytics**   | Contains static methods for querying the database and calculating all key metrics (CR, ACV, Abandonment Rate).  | `includes/class-wc-cart-analytics.php`                 |
-| **Admin**       | Manages the admin menu registration and loads the view templates.                                               | `admin/class-wc-cart-admin.php`, `admin/views/*.php`   |
+| **Admin**       | Manages the admin menu, asset enqueuing, and the AJAX endpoints for the dynamic dashboard.                      | `admin/class-wc-cart-admin.php`, `admin/views/*.php`   |
 
 ### Database Schema
 
@@ -94,6 +88,11 @@ The plugin uses a dedicated, indexed table for performance: `wp_all_carts_tracke
 ---
 
 ## 📝 Changelog
+
+### 1.0.1
+
+- Added AJAX handler and JavaScript functionality for manual dashboard refresh.
+- Refactored Admin dashboard to use stable DOM selectors for metric updates.
 
 ### 1.0.0
 
