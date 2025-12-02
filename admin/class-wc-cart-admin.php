@@ -45,16 +45,20 @@ class WC_Cart_Tracker_Admin
             return;
         }
 
+        // FIX: Enqueue the default WordPress admin stylesheet to load core styling,
+        // including the CSS sprites for the sorting arrows.
+        wp_enqueue_style('wp-admin');
+
         wp_enqueue_style(
             'wc-cart-tracker-admin',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/admin-styles.css',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-styles.css',
             array(),
             WC_CART_TRACKER_VERSION
         );
 
         wp_enqueue_script(
             'wc-cart-tracker-admin',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/admin-scripts.js',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-scripts.js',
             array('jquery'),
             WC_CART_TRACKER_VERSION,
             true

@@ -1,7 +1,15 @@
+/**
+ * Admin Styles for WC All Cart Tracker.
+ *
+ * @package WC_All_Cart_Tracker
+ */
+
+/* --- General Layout and Spacing --- */
 .wc-cart-analytics-dashboard {
 	margin: 20px 0;
 }
 
+/* --- Grid Layouts --- */
 .wc-cart-metrics,
 .wc-cart-metrics-detailed {
 	display: grid;
@@ -17,13 +25,47 @@
 	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
+/* --- Metric Card Styling --- */
 .metric-card {
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	padding: 15px;
 	border-radius: 4px;
+	/* ADDED: Crucial for aligning elements vertically */
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 }
 
+/* ADDED: Styling for inner text within cards */
+.metric-card h3 {
+	margin: 0 0 15px 0;
+	font-size: 14px;
+}
+
+/* ADDED: Color-coded left borders for the top metrics */
+/* Conversion Rate */
+.wc-cart-metrics .metric-card:nth-child(1) {
+	border-left: 4px solid #2271b1;
+}
+/* Active Carts */
+.wc-cart-metrics .metric-card:nth-child(2) {
+	border-left: 4px solid #00a32a;
+}
+/* Abandoned Carts */
+.wc-cart-metrics .metric-card:nth-child(3) {
+	border-left: 4px solid #d63638;
+}
+/* Deleted Carts */
+.wc-cart-metrics .metric-card:nth-child(4) {
+	border-left: 4px solid #f0b849;
+}
+/* Revenue Potential */
+.wc-cart-metrics .metric-card:nth-child(5) {
+	border-left: 4px solid #7e3bd0;
+}
+
+/* --- List Table Styling Overrides --- */
 .wp-list-table th {
 	white-space: nowrap;
 }
@@ -35,4 +77,28 @@
 
 .wp-list-table td ul {
 	margin: 0;
+	/* ADDED: Padding for list items inside tables */
+	padding-left: 20px;
+}
+
+/* ADDED: Styles for sorting links */
+.wp-list-table .sortable a,
+.wp-list-table .sorted a {
+	text-decoration: none;
+	color: inherit;
+}
+
+.wp-list-table .sorted a {
+	color: #2271b1;
+}
+
+/* ADDED: Style for details/summary in history table */
+details summary {
+	outline: none;
+	cursor: pointer;
+	color: #2271b1;
+	font-weight: 600;
+}
+details[open] summary {
+	margin-bottom: 10px;
 }
