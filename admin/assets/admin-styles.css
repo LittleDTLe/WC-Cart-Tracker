@@ -1,0 +1,38 @@
+.wc-cart-analytics-dashboard {
+	margin: 20px 0;
+}
+
+.wc-cart-metrics,
+.wc-cart-metrics-detailed {
+	display: grid;
+	gap: 15px;
+}
+
+.wc-cart-metrics {
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	margin-bottom: 20px;
+}
+
+.wc-cart-metrics-detailed {
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.metric-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	padding: 15px;
+	border-radius: 4px;
+}
+
+.wp-list-table th {
+	white-space: nowrap;
+}
+
+.wp-list-table td {
+	vertical-align: top;
+	padding: 12px 10px;
+}
+
+.wp-list-table td ul {
+	margin: 0;
+}

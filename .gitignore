@@ -1,0 +1,8 @@
+# -------------------------------------------------------------
+# OS/IDE Artifacts
+# -------------------------------------------------------------
+.DS_Store
+**/.DS_Store
+
+# Ignore version control or backup folders (as specified)
+/versions/
