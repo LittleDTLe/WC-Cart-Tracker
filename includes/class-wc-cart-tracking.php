@@ -22,7 +22,8 @@ class WC_Cart_Tracker_Tracking
         add_action('woocommerce_add_to_cart', array($this, 'track_cart'), 10, 6);
         add_action('woocommerce_cart_item_removed', array($this, 'track_cart_update'), 10, 2);
         add_action('woocommerce_after_cart_item_quantity_update', array($this, 'track_cart_update'), 10, 4);
-        add_action('woocommerce_cart_emptied', array($this, 'track_cart_update'));
+        // add_action('woocommerce_cart_emptied', array($this, 'track_cart_update'));
+        add_action('woocommerce_cart_emptied', array($this, 'handle_cart_emptied_status'), 10, 0);
         add_action('woocommerce_thankyou', array($this, 'mark_cart_converted'), 10, 1);
         add_action('woocommerce_order_status_completed', array($this, 'mark_cart_converted_by_user'), 10, 1);
         add_action('woocommerce_checkout_update_order_meta', array($this, 'update_guest_data'), 10, 1);
@@ -163,15 +164,35 @@ class WC_Cart_Tracker_Tracking
 
     private function mark_cart_deleted()
     {
+
+        if (is_admin() && isset($_GET['post']) && get_post_type($_GET['post']) === 'shop_order') {
+            return;
+        }
+
+        if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url('order-received')) {
+            return;
+        }
+
+        if (is_checkout() || is_order_received_page()) {
+            return;
+        }
+
+
         $session_id = $this->get_session_id();
         $user_id = get_current_user_id();
         WC_Cart_Tracker_Database::update_cart_status($session_id, $user_id, 'deleted');
     }
 
+    public function handle_cart_emptied_status()
+    {
+        // This function is only called when the cart is emptied.
+        $this->mark_cart_deleted();
+    }
+
     public function update_guest_data($order_id)
     {
         $order = wc_get_order($order_id);
-        if (!$order) {
+        if (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url('order-received')) {
             return;
         }
 
