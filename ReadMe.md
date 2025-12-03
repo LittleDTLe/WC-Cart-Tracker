@@ -1,17 +1,5 @@
 # WC All Cart Tracker
 
-**Contributors:** Panagiotis Drougas
-**Tags:** woocommerce, cart, analytics, conversion, tracking, guest, live carts, abandoned carts, ajax
-**Requires at least:** 5.8
-**Tested up to:** 6.5.5
-**Requires PHP:** 7.4
-**WC requires at least:** 5.0
-**WC tested up to:** 9.0
-**License:** GPL v2 or later
-**License URI:** https://www.gnu.org/licenses/gpl-2.0.html
-
-# WC All Cart Tracker
-
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-green.svg)
 ![WooCommerce](https://img.shields.io/badge/WooCommerce-5.0%2B-purple.svg)
