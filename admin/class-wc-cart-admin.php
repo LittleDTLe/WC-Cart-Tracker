@@ -113,9 +113,11 @@ class WC_Cart_Tracker_Admin
             round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
 
         // Get fresh carts for table
+        $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
         $carts = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE is_active = %d ORDER BY {$orderby} {$order}",
-            1
+            "SELECT * FROM {$table_name} WHERE is_active = %d AND last_updated >= %s ORDER BY {$orderby} {$order}",
+            1,
+            $recent_date
         ));
 
         // Generate table body HTML

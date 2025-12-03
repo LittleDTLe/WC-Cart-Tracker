@@ -122,11 +122,6 @@ jQuery(document).ready(function($) {
     // Attach click handler for manual refresh
     refreshButton.on('click', refreshDashboard);
 
-    // CRITICAL: Ensure the saved PHP setting is checked AFTER all functions are defined
-    if (autoRefreshSettings.enabled === 'yes') {
-        startAutoRefresh();
-    }
-
     const autoRefreshToggle = $('#wcat-auto-refresh-toggle');
 
     if (autoRefreshToggle.length) {
@@ -173,5 +168,8 @@ jQuery(document).ready(function($) {
                 }
             });
         });
+    }
+    if (autoRefreshSettings.enabled === 'yes') {
+        startAutoRefresh();
     }
 });

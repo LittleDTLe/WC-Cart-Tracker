@@ -286,7 +286,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Total Carts Tracked:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="total_carts_summary">
+                    <strong class="wcat-value" data-key="total_carts">
                         <?php echo esc_html($analytics['total_carts']); ?>
                     </strong>
                 </div>
@@ -294,7 +294,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Converted to Order:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="converted_carts_summary" style="color: #00a32a;">
+                    <strong class="wcat-value" data-key="converted_carts" style="color: #00a32a;">
                         <?php echo esc_html($analytics['converted_carts']); ?>
                     </strong>
                 </div>
@@ -306,7 +306,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span style="color: #646970;"><?php echo esc_html__('Overall CR:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="conversion_rate_summary" style="color: #2271b1;">
+                    <strong class="wcat-value" data-key="conversion_rate" style="color: #2271b1;">
                         <?php echo esc_html($analytics['conversion_rate']); ?>%
                     </strong>
                 </div>
@@ -314,7 +314,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Abandonment Rate:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="abandonment_rate_summary" style="color: #d63638;">
+                    <strong class="wcat-value" data-key="abandonment_rate" style="color: #d63638;">
                         <?php echo esc_html($analytics['abandonment_rate']); ?>%
                     </strong>
                 </div>
