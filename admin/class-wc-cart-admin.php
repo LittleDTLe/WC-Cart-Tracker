@@ -47,6 +47,7 @@ class WC_Cart_Tracker_Admin
         }
 
         wp_enqueue_style('wp-admin');
+
         wp_enqueue_style(
             'wc-cart-tracker-admin',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-styles.css',
@@ -62,14 +63,12 @@ class WC_Cart_Tracker_Admin
             true
         );
 
-        wp_localize_script(
-            'wc-cart-tracker-admin',
-            'wcat_ajax',
-            array(
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wcat_refresh_nonce'),
-            )
-        );
+        // Localize script with AJAX data
+        wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wcat_ajax_nonce'),
+            'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
+        ));
     }
 
     public function render_dashboard_page()
@@ -85,54 +84,49 @@ class WC_Cart_Tracker_Admin
     // --- AJAX Handler ---
     public function ajax_refresh_dashboard()
     {
-        if (!isset($_POST['security']) || !check_ajax_referer('wcat_refresh_nonce', 'security', false)) {
-            wp_send_json_error(array('message' => 'Security check failed or Nonce is invalid. Please refresh the dashboard page.'));
-        }
+        check_ajax_referer('wcat_ajax_nonce', 'security');
 
         if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error(array('message' => 'Permission denied.'));
+            wp_send_json_error('Insufficient permissions');
         }
 
         global $wpdb;
         $table_name = WC_Cart_Tracker_Database::get_table_name();
 
-        $days = 30;
-
+        $days = isset($_POST['days']) ? absint($_POST['days']) : 30;
         $orderby = isset($_POST['orderby']) ? sanitize_text_field($_POST['orderby']) : 'last_updated';
         $order = isset($_POST['order']) ? sanitize_text_field($_POST['order']) : 'DESC';
 
+        // Get fresh analytics
         $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
 
+        // Calculate distribution
+        $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];
+        $analytics['registered_distribution'] = $total_carts_by_type > 0 ?
+            round(($analytics['registered_carts'] / $total_carts_by_type) * 100, 2) : 0;
+        $analytics['guest_distribution'] = $total_carts_by_type > 0 ?
+            round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
+
+        // Get fresh carts for table
         $carts = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$table_name} WHERE is_active = %d ORDER BY {$orderby} {$order}",
             1
         ));
 
-        $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];
-        $registered_distribution = $total_carts_by_type > 0 ? round(($analytics['registered_carts'] / $total_carts_by_type) * 100, 2) : 0;
-        $guest_distribution = $total_carts_by_type > 0 ? round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
-
-        // Render the Carts Table Body HTML fragment using output buffering
+        // Generate table body HTML
         ob_start();
-        $template_path = WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/table-body.php';
-        if (file_exists($template_path)) {
-            include $template_path;
-        } else {
-            echo '<tr><td colspan="6" style="text-align: center;">ERROR: AJAX Template Missing at ' . esc_html($template_path) . '</td></tr>';
-        }
-        $table_body_html = ob_get_clean();
+        require WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/table-body.php';
+        $tableBody = ob_get_clean();
 
-        // Send back the successful JSON response 
+        // Prepare currency-formatted values as HTML
         wp_send_json_success(array(
-            'tableBody' => $table_body_html,
             'analytics' => $analytics,
-            'registeredDistribution' => $registered_distribution,
-            'guestDistribution' => $guest_distribution,
-
-            'max_active_cart_html' => wc_price($analytics['max_active_cart']),
-            'revenue_potential_html' => wc_price($analytics['revenue_potential']),
+            'tableBody' => $tableBody,
+            // Add formatted currency values for easy injection
             'avg_active_cart_html' => wc_price($analytics['avg_active_cart']),
             'avg_converted_cart_html' => wc_price($analytics['avg_converted_cart']),
+            'revenue_potential_html' => wc_price($analytics['revenue_potential']),
+            'max_cart_total_html' => wc_price($wpdb->get_var("SELECT MAX(cart_total) FROM {$table_name} WHERE is_active = 1") ?: 0),
         ));
     }
 }

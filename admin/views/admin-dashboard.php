@@ -163,7 +163,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Active Carts:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="avg_active_cart">
+                    <strong class="wcat-value" data-key="avg_active_cart_html">
                         <?php echo wc_price($analytics['avg_active_cart']); ?>
                     </strong>
                 </div>
@@ -171,7 +171,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Converted Carts:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="avg_converted_cart">
+                    <strong class="wcat-value" data-key="avg_converted_cart_html">
                         <?php echo wc_price($analytics['avg_converted_cart']); ?>
                     </strong>
                 </div>
@@ -184,7 +184,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Highest Potential:', 'wc-all-cart-tracker'); ?></span>
-                    <strong>
+                    <strong class="wcat-value" data-key="max_cart_total_html">
                         <?php
                         $max_cart_total = $wpdb->get_var("SELECT MAX(cart_total) FROM {$table_name} WHERE is_active = 1");
                         echo wc_price($max_cart_total ? $max_cart_total : 0);
@@ -195,7 +195,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <div style="display: flex; justify-content: space-between;">
                     <span
                         style="color: #646970;"><?php echo esc_html__('Revenue Potential:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="revenue_potential_detailed">
+                    <strong class="wcat-value" data-key="revenue_potential_html">
                         <?php echo wc_price($analytics['revenue_potential']); ?>
                     </strong>
                 </div>
