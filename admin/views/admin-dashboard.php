@@ -39,10 +39,13 @@ if (!in_array($orderby, $allowed_orderby)) {
 }
 $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
 
-// Get active carts data
+$recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+// Get ACTIVE carts data (Exclude abandoned carts)
 $carts = $wpdb->get_results($wpdb->prepare(
-    "SELECT * FROM {$table_name} WHERE is_active = %d ORDER BY {$orderby} {$order}",
-    1
+    "SELECT * FROM {$table_name} WHERE is_active = %d AND last_updated >= %s ORDER BY {$orderby} {$order}",
+    1,
+    $recent_date
 ));
 // --- End Data Retrieval ---
 
@@ -58,6 +61,15 @@ $carts = $wpdb->get_results($wpdb->prepare(
     <div class="wc-cart-analytics-dashboard">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h2 style="margin: 0;"><?php echo esc_html__('Analytics Overview', 'wc-all-cart-tracker'); ?></h2>
+            <div style="margin: 15px 0; padding: 10px; border: 1px solid #c3c4c7; background: #f0f0f1; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <strong><?php echo esc_html__('Automatic Refresh:', 'wc-all-cart-tracker'); ?></strong>
+                <label class="wcat-toggle-switch">
+                    <input type="checkbox" id="wcat-auto-refresh-toggle" 
+                        data-nonce="<?php echo esc_attr(wp_create_nonce('wcat_save_settings_nonce')); ?>"
+                    <?php checked(get_option('wcat_auto_refresh_enabled', 'no'), 'yes'); ?>>
+                    <span class="slider round"></span>
+                </label>
+            </div>
             <div>
                 <label for="days-filter"><?php echo esc_html__('Time Period:', 'wc-all-cart-tracker'); ?></label>
                 <select id="days-filter"
@@ -141,11 +153,11 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
             <div class="metric-card" style="border-left: 4px solid #7e3bd0;">
                 <div style="font-size: 13px; color: #646970; margin-bottom: 5px;">
-                    <?php echo esc_html__('Revenue Potential', 'wc-all-cart-tracker'); ?>
+                    <?php echo esc_html__('Overall Cart Potential', 'wc-all-cart-tracker'); ?>
                 </div>
                 <div style="font-size: 28px; font-weight: 600; color: #7e3bd0;">
-                    <strong class="wcat-value" data-key="revenue_potential">
-                        <?php echo wc_price($analytics['revenue_potential']); ?>
+                    <strong class="wcat-value" data-key="overall_revenue_potential_html">
+                        <?php echo wc_price($analytics['overall_revenue_potential']); ?>
                     </strong>
                 </div>
                 <div style="font-size: 12px; color: #646970; margin-top: 5px;">
@@ -194,9 +206,27 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
                 <div style="display: flex; justify-content: space-between;">
                     <span
-                        style="color: #646970;"><?php echo esc_html__('Revenue Potential:', 'wc-all-cart-tracker'); ?></span>
-                    <strong class="wcat-value" data-key="revenue_potential_html">
-                        <?php echo wc_price($analytics['revenue_potential']); ?>
+                        style="color: #646970;"><?php echo esc_html__('Overall Revenue Potential:', 'wc-all-cart-tracker'); ?></span>
+                    <strong class="wcat-value" data-key="overall_revenue_potential_html">
+                        <?php echo wc_price($analytics['overall_revenue_potential']); ?>
+                    </strong>
+                </div>
+
+                <h4 style="margin: 10px 0 5px 0; font-size: 13px; border-bottom: 1px solid #eee; padding-bottom: 5px; border-top: 1px solid #eee; padding-top: 10px; color: #2271b1;">
+                    <?php echo esc_html__('Split Potential Value', 'wc-all-cart-tracker'); ?>
+                </h4>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: #646970;"><?php echo esc_html__('1. Active Cart Potential:', 'wc-all-cart-tracker'); ?></span>
+                    <strong class="wcat-value" data-key="active_cart_potential_html">
+                        <?php echo wc_price($analytics['active_cart_potential']); ?>
+                    </strong>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #646970;"><?php echo esc_html__('2. Abandoned Potential:', 'wc-all-cart-tracker'); ?></span>
+                    <strong class="wcat-value" data-key="abandoned_cart_potential_html">
+                        <?php echo wc_price($analytics['abandoned_cart_potential']); ?>
                     </strong>
                 </div>
             </div>

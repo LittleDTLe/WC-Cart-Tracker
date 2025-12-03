@@ -240,7 +240,7 @@ CREATE TABLE wp_all_carts_tracker (
 
 ```
 wc-all-cart-tracker/
-├── wc-all-cart-tracker.php          # Main plugin file & loader
+├── wc-all-cart-tracker.php            # Main plugin file & loader
 ├── README.md                          # Documentation
 ├── LICENSE                            # GPL v2 License
 ├── uninstall.php                      # Cleanup on uninstall

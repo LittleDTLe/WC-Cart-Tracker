@@ -2,14 +2,18 @@
  * Admin Scripts for WC All Cart Tracker.
  */
 jQuery(document).ready(function($) {
+
+    let refreshIntervalId = null; 
+
     // Variables localized from PHP object
     const ajaxUrl = wcat_ajax.ajax_url; 
     const nonce = wcat_ajax.nonce;
+    const autoRefreshSettings = wcat_ajax.auto_refresh;
 
     const tableBodySelector = '#wcat-active-carts-body';
     const refreshButton = $('#wcat-manual-refresh');
     
-    // --- Stable Update Function ---
+    // --- Stable Update Function (Used by AJAX) ---
     function updateMetricCards(data) {
         const analytics = data.analytics;
 
@@ -20,16 +24,17 @@ jQuery(document).ready(function($) {
 
             let value;
 
+            // Determine source: If key has '_html', value comes from data object (formatted string)
             if (key.includes('_html')) {
-                // Currency fields: Get the formatted HTML string directly from the data object
                 value = data[key]; 
             } else {
-                // Raw data (counts or unformatted rates)
+                // Otherwise, value comes from the raw analytics object (counts/rates)
                 value = analytics[key];
             }
 
             if (value !== undefined) {
                 if (key.includes('_html')) {
+                    // Inject the formatted HTML currency string
                     $(this).html(value); 
                 } else if (key.includes('rate') || key.includes('distribution')) {
                     // Inject percentage values
@@ -47,8 +52,7 @@ jQuery(document).ready(function($) {
         });
         
         // 2. Update the helper numbers (e.g., "2 / 5 carts tracked")
-        // This is generally for raw counts and should use .text()
-        $('.wc-cart-metrics .wcat-meta-value').each(function() {
+        $('.wc-metrics .wcat-meta-value').each(function() {
              const key = $(this).data('key');
              $(this).text(analytics[key]);
         });
@@ -57,7 +61,7 @@ jQuery(document).ready(function($) {
         refreshButton.prop('disabled', false).text('Refresh Data');
     }
 
-    // --- Core AJAX Logic ---
+    // --- Core AJAX Logic (Remains unchanged) ---
     function refreshDashboard() {
         refreshButton.prop('disabled', true).text('Refreshing...');
 
@@ -69,7 +73,6 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'wcat_refresh_dashboard',
                 security: wcat_ajax.nonce,
-                // Extract orderby/order from the current sorted header
                 orderby: currentSortTh.find('a').attr('href').match(/orderby=([^&]+)/)?.[1] || 'last_updated',
                 order: currentSortTh.hasClass('asc') ? 'ASC' : 'DESC'
             },
@@ -95,6 +98,80 @@ jQuery(document).ready(function($) {
         });
     }
 
-    // Attach click handler
+    // --- Automatic Page Refresh Handler ---
+    function startAutoRefresh() {
+        if (refreshIntervalId !== null) {
+            clearInterval(refreshIntervalId);
+        }
+
+        const pollingFunction = function () {
+            if (!refreshButton.prop('disabled')) {
+                refreshDashboard();
+            }
+        };
+
+        pollingFunction();
+
+        refreshIntervalId = setInterval(pollingFunction, autoRefreshSettings.interval);
+
+        $(window).on('beforeunload', function () {
+            clearInterval(refreshIntervalId);
+        });
+    }
+
+    // Attach click handler for manual refresh
     refreshButton.on('click', refreshDashboard);
+
+    // CRITICAL: Ensure the saved PHP setting is checked AFTER all functions are defined
+    if (autoRefreshSettings.enabled === 'yes') {
+        startAutoRefresh();
+    }
+
+    const autoRefreshToggle = $('#wcat-auto-refresh-toggle');
+
+    if (autoRefreshToggle.length) {
+        // Function to start or stop the auto-refresh timer
+        function updateRefreshState(isEnabled) {
+            if (isEnabled) {
+                startAutoRefresh(); 
+                console.log('Auto-refresh ENABLED.');
+            } else {
+                clearInterval(refreshIntervalId); 
+                refreshIntervalId = null;
+                console.log('Auto-refresh DISABLED.');
+            }
+        }
+        
+        // Handle saving the setting via AJAX
+        autoRefreshToggle.on('change', function() {
+            const isChecked = $(this).is(':checked');
+            const settingNonce = $(this).data('nonce');
+            
+            updateRefreshState(isChecked);
+
+            $.ajax({
+                url: wcat_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'wcat_save_refresh_setting',
+                    security: settingNonce,
+                    enabled: isChecked ? 'yes' : 'no'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Success saved!
+                    } else {
+                        alert('Failed to save auto-refresh setting. Please check permissions.');
+                        autoRefreshToggle.prop('checked', !isChecked);
+                        updateRefreshState(!isChecked);
+                    }
+                },
+                error: function() {
+                    alert('Error communicating with server. Setting not saved.');
+                    autoRefreshToggle.prop('checked', !isChecked);
+                    updateRefreshState(!isChecked);
+                }
+            });
+        });
+    }
 });

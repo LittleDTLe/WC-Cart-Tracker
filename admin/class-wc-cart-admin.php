@@ -17,6 +17,7 @@ class WC_Cart_Tracker_Admin
         add_action('admin_menu', array($this, 'add_admin_menu'), 60);
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_action('wp_ajax_wcat_refresh_dashboard', array($this, 'ajax_refresh_dashboard'));
+        add_action('wp_ajax_wcat_save_refresh_setting', array($this, 'ajax_save_refresh_setting'));
     }
 
     public function add_admin_menu()
@@ -68,6 +69,10 @@ class WC_Cart_Tracker_Admin
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wcat_ajax_nonce'),
             'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
+            'auto_refresh' => array(
+                'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
+                'interval' => 45000,
+            )
         ));
     }
 
@@ -125,8 +130,31 @@ class WC_Cart_Tracker_Admin
             // Add formatted currency values for easy injection
             'avg_active_cart_html' => wc_price($analytics['avg_active_cart']),
             'avg_converted_cart_html' => wc_price($analytics['avg_converted_cart']),
-            'revenue_potential_html' => wc_price($analytics['revenue_potential']),
+            'overall_revenue_potential_html' => wc_price($analytics['overall_revenue_potential']),
+            'active_cart_potential_html' => wc_price($analytics['active_cart_potential']),
+            'abandoned_cart_potential_html' => wc_price($analytics['abandoned_cart_potential']),
             'max_cart_total_html' => wc_price($wpdb->get_var("SELECT MAX(cart_total) FROM {$table_name} WHERE is_active = 1") ?: 0),
+        ));
+    }
+
+    public function ajax_save_refresh_setting()
+    {
+        // 1. Security Check (using the specific nonce for this setting)
+        check_ajax_referer('wcat_save_settings_nonce', 'security');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error(array('message' => 'Permission denied.'));
+        }
+
+        $enabled_state = isset($_POST['enabled']) ? sanitize_text_field($_POST['enabled']) : 'no';
+
+        // 2. Update the WordPress option
+        update_option('wcat_auto_refresh_enabled', $enabled_state);
+
+        // 3. Success
+        wp_send_json_success(array(
+            'status' => $enabled_state,
+            'message' => 'Auto-refresh setting saved.'
         ));
     }
 }
