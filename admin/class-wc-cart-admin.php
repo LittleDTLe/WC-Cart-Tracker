@@ -16,6 +16,8 @@ class WC_Cart_Tracker_Admin
     {
         add_action('admin_menu', array($this, 'add_admin_menu'), 60);
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_action('wp_ajax_wcat_refresh_dashboard', array($this, 'ajax_refresh_dashboard'));
+        add_action('wp_ajax_wcat_save_refresh_setting', array($this, 'ajax_save_refresh_setting'));
     }
 
     public function add_admin_menu()
@@ -45,8 +47,6 @@ class WC_Cart_Tracker_Admin
             return;
         }
 
-        // FIX: Enqueue the default WordPress admin stylesheet to load core styling,
-        // including the CSS sprites for the sorting arrows.
         wp_enqueue_style('wp-admin');
 
         wp_enqueue_style(
@@ -63,6 +63,17 @@ class WC_Cart_Tracker_Admin
             WC_CART_TRACKER_VERSION,
             true
         );
+
+        // Localize script with AJAX data
+        wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wcat_ajax_nonce'),
+            'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
+            'auto_refresh' => array(
+                'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
+                'interval' => 45000,
+            )
+        ));
     }
 
     public function render_dashboard_page()
@@ -73,5 +84,77 @@ class WC_Cart_Tracker_Admin
     public function render_history_page()
     {
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/admin-history.php';
+    }
+
+    // --- AJAX Handler ---
+    public function ajax_refresh_dashboard()
+    {
+        check_ajax_referer('wcat_ajax_nonce', 'security');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        global $wpdb;
+        $table_name = WC_Cart_Tracker_Database::get_table_name();
+
+        $days = isset($_POST['days']) ? absint($_POST['days']) : 30;
+        $orderby = isset($_POST['orderby']) ? sanitize_text_field($_POST['orderby']) : 'last_updated';
+        $order = isset($_POST['order']) ? sanitize_text_field($_POST['order']) : 'DESC';
+
+        // Get fresh analytics
+        $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
+
+        // Calculate distribution
+        $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];
+        $analytics['registered_distribution'] = $total_carts_by_type > 0 ?
+            round(($analytics['registered_carts'] / $total_carts_by_type) * 100, 2) : 0;
+        $analytics['guest_distribution'] = $total_carts_by_type > 0 ?
+            round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
+
+        // Get fresh carts for table
+        $carts = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table_name} WHERE is_active = %d ORDER BY {$orderby} {$order}",
+            1
+        ));
+
+        // Generate table body HTML
+        ob_start();
+        require WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/table-body.php';
+        $tableBody = ob_get_clean();
+
+        // Prepare currency-formatted values as HTML
+        wp_send_json_success(array(
+            'analytics' => $analytics,
+            'tableBody' => $tableBody,
+            // Add formatted currency values for easy injection
+            'avg_active_cart_html' => wc_price($analytics['avg_active_cart']),
+            'avg_converted_cart_html' => wc_price($analytics['avg_converted_cart']),
+            'overall_revenue_potential_html' => wc_price($analytics['overall_revenue_potential']),
+            'active_cart_potential_html' => wc_price($analytics['active_cart_potential']),
+            'abandoned_cart_potential_html' => wc_price($analytics['abandoned_cart_potential']),
+            'max_cart_total_html' => wc_price($wpdb->get_var("SELECT MAX(cart_total) FROM {$table_name} WHERE is_active = 1") ?: 0),
+        ));
+    }
+
+    public function ajax_save_refresh_setting()
+    {
+        // 1. Security Check (using the specific nonce for this setting)
+        check_ajax_referer('wcat_save_settings_nonce', 'security');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error(array('message' => 'Permission denied.'));
+        }
+
+        $enabled_state = isset($_POST['enabled']) ? sanitize_text_field($_POST['enabled']) : 'no';
+
+        // 2. Update the WordPress option
+        update_option('wcat_auto_refresh_enabled', $enabled_state);
+
+        // 3. Success
+        wp_send_json_success(array(
+            'status' => $enabled_state,
+            'message' => 'Auto-refresh setting saved.'
+        ));
     }
 }

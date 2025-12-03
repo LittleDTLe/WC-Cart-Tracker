@@ -37,13 +37,18 @@ class WC_Cart_Tracker_Analytics
             $date_from
         ));
 
-        // Active carts
-        $active_carts = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name} WHERE is_active = 1");
+        $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
-        // Abandoned carts
+        // 1. Truly Active Carts (Carts updated recently)
+        $active_carts = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_name} WHERE is_active = 1 AND last_updated >= %s",
+            $recent_date // Only counts carts touched within the last 24 hours
+        ));
+
+        // 2. Abandoned Carts (Logic remains: > 24 hours old)
         $abandoned_carts = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$table_name} WHERE is_active = 1 AND last_updated < %s",
-            date('Y-m-d H:i:s', strtotime('-24 hours'))
+            $recent_date
         ));
 
         // Average values
@@ -54,13 +59,26 @@ class WC_Cart_Tracker_Analytics
         ));
 
         // Revenue potential
-        $revenue_potential = $wpdb->get_var("SELECT SUM(cart_total) FROM {$table_name} WHERE is_active = 1");
+        $overall_revenue_potential = $wpdb->get_var("SELECT SUM(cart_total) FROM {$table_name} WHERE is_active = 1");
+
+        // Active Cart Potential (Carts updated recently, e.g., last 24 hours)
+        $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        $active_cart_potential = $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(cart_total) FROM {$table_name} WHERE is_active = 1 AND last_updated >= %s",
+            $recent_date
+        ));
+
+        // Abandoned Cart Potential (Carts active but older than 24 hours)
+        $abandoned_cart_potential = $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(cart_total) FROM {$table_name} WHERE is_active = 1 AND last_updated < %s",
+            $recent_date
+        ));
 
         // Conversion rate
         $conversion_rate = $total_carts > 0 ? ($converted_carts / $total_carts) * 100 : 0;
 
         // Abandonment rate
-        $abandonment_rate = $total_carts > 0 ? (($abandoned_carts + $active_carts - $converted_carts) / $total_carts) * 100 : 0;
+        $abandonment_rate = $total_carts > 0 ? ($abandoned_carts / $total_carts) * 100 : 0;
 
         // By customer type
         $registered_carts = $wpdb->get_var($wpdb->prepare(
@@ -91,7 +109,9 @@ class WC_Cart_Tracker_Analytics
             'abandoned_carts' => $abandoned_carts,
             'avg_active_cart' => $avg_active_cart ? floatval($avg_active_cart) : 0,
             'avg_converted_cart' => $avg_converted_cart ? floatval($avg_converted_cart) : 0,
-            'revenue_potential' => $revenue_potential ? floatval($revenue_potential) : 0,
+            'overall_revenue_potential' => $overall_revenue_potential ? floatval($overall_revenue_potential) : 0,
+            'active_cart_potential' => $active_cart_potential ? floatval($active_cart_potential) : 0,
+            'abandoned_cart_potential' => $abandoned_cart_potential ? floatval($abandoned_cart_potential) : 0,
             'conversion_rate' => round($conversion_rate, 2),
             'abandonment_rate' => round($abandonment_rate, 2),
             'registered_carts' => $registered_carts,
