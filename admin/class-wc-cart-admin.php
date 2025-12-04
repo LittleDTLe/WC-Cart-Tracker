@@ -103,10 +103,12 @@ class WC_Cart_Tracker_Admin
         global $wpdb;
         $table_name = WC_Cart_Tracker_Database::get_table_name();
 
-        $days = isset($_POST['days']) ? absint($_POST['days']) : 30;
+        $days = isset($_POST['days']) ? sanitize_text_field($_POST['days']) : '30';
+        $date_from = isset($_POST['date_from']) ? sanitize_text_field($_POST['date_from']) : '';
+        $date_to = isset($_POST['date_to']) ? sanitize_text_field($_POST['date_to']) : '';
         $orderby = isset($_POST['orderby']) ? sanitize_text_field($_POST['orderby']) : 'last_updated';
         $order = isset($_POST['order']) ? sanitize_text_field($_POST['order']) : 'DESC';
-        $limit = isset($_POST['limit']) ? absint($_POST['limit']) : 50; // Add pagination
+        $limit = isset($_POST['limit']) ? absint($_POST['limit']) : 50;
 
         // Bypass flag
         $bypass_cache = isset($_POST['bypass_cache']) && $_POST['bypass_cache'] === 'true';
@@ -114,11 +116,19 @@ class WC_Cart_Tracker_Admin
         //Check if Analytics class is available and Clear Cache
         if ($bypass_cache && class_exists('WC_Cart_Tracker_Analytics')) {
             // Clear the cache for the specific time period being viewed
-            WC_Cart_Tracker_Analytics::clear_cache($days);
+            if ($days === 'custom' && !empty($date_from) && !empty($date_to)) {
+                WC_Cart_Tracker_Analytics::clear_cache(); // Clear all custom caches
+            } else {
+                WC_Cart_Tracker_Analytics::clear_cache(absint($days));
+            }
         }
 
-        // Get fresh analytics
-        $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
+        // Get fresh analytics based on date range type
+        if ($days === 'custom' && !empty($date_from) && !empty($date_to)) {
+            $analytics = WC_Cart_Tracker_Analytics::get_analytics_data_by_date_range($date_from, $date_to);
+        } else {
+            $analytics = WC_Cart_Tracker_Analytics::get_analytics_data(absint($days));
+        }
 
         // Calculate distribution
         $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];

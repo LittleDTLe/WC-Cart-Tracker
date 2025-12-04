@@ -516,8 +516,9 @@ add_filter('wc_cart_tracker_admin_columns', function($columns) {
 ### Version 1.1.0 (Upcoming)
 
 - Automatic Dashboard Refresh
-- Export functionality (CSV)
 - Basic email notifications for abandoned carts
+- Custom Date Ranges
+- Export functionality (CSV)
 - Performance improvements for large datasets
 
 ---

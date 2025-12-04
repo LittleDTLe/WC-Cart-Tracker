@@ -17,12 +17,24 @@ $table_name = WC_Cart_Tracker_Database::get_table_name();
 
 // --- Data Retrieval ---
 $days = isset($_GET['days']) ? absint($_GET['days']) : 30;
-if (!in_array($days, array(7, 30, 60, 90))) {
+$date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
+$date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+
+// Validate custom date range
+$using_custom_range = false;
+if (!empty($date_from) && !empty($date_to)) {
+    $using_custom_range = true;
+    $days = 'custom';
+} elseif (!in_array($days, array(7, 30, 60, 90))) {
     $days = 30;
 }
 
 // Get analytics data using the dedicated class
-$analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
+if ($using_custom_range) {
+    $analytics = WC_Cart_Tracker_Analytics::get_analytics_data_by_date_range($date_from, $date_to);
+} else {
+    $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
+}
 
 // --- Distribution Calculation (Needed for By Customer Type Card) ---
 $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];
@@ -59,8 +71,9 @@ $carts = $wpdb->get_results($wpdb->prepare(
     </div>
 
     <div class="wc-cart-analytics-dashboard">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0;"><?php echo esc_html__('Analytics Overview', 'wc-all-cart-tracker'); ?></h2>
+            
             <div style="margin: 15px 0; padding: 10px; border: 1px solid #c3c4c7; background: #f0f0f1; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
                 <strong><?php echo esc_html__('Automatic Refresh:', 'wc-all-cart-tracker'); ?></strong>
                 <label class="wcat-toggle-switch">
@@ -70,25 +83,67 @@ $carts = $wpdb->get_results($wpdb->prepare(
                     <span class="slider round"></span>
                 </label>
             </div>
-            <div>
-                <label for="days-filter"><?php echo esc_html__('Time Period:', 'wc-all-cart-tracker'); ?></label>
-                <select id="days-filter"
-                    onchange="window.location.href='<?php echo esc_url(admin_url('admin.php?page=wc-all-cart-tracker')); ?>&days=' + this.value">
-                    <option value="7" <?php selected($days, 7); ?>>
-                        <?php echo esc_html__('Last 7 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="30" <?php selected($days, 30); ?>>
-                        <?php echo esc_html__('Last 30 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="60" <?php selected($days, 60); ?>>
-                        <?php echo esc_html__('Last 60 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="90" <?php selected($days, 90); ?>>
-                        <?php echo esc_html__('Last 90 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                </select>
+
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <div>
+                    <label for="days-filter"><?php echo esc_html__('Time Period:', 'wc-all-cart-tracker'); ?></label>
+                    <select id="days-filter">
+                        <option value="7" <?php selected($days, 7); ?>>
+                            <?php echo esc_html__('Last 7 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="30" <?php selected($days, 30); ?>>
+                            <?php echo esc_html__('Last 30 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="60" <?php selected($days, 60); ?>>
+                            <?php echo esc_html__('Last 60 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="90" <?php selected($days, 90); ?>>
+                            <?php echo esc_html__('Last 90 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="custom" <?php selected($days, 'custom'); ?>>
+                            <?php echo esc_html__('Custom Range', 'wc-all-cart-tracker'); ?>
+                        </option>
+                    </select>
+                </div>
+
+                <div id="custom-date-range" style="display: <?php echo $using_custom_range ? 'flex' : 'none'; ?>; align-items: center; gap: 10px;">
+                    <div>
+                        <label for="date-from" style="display: block; font-size: 12px; margin-bottom: 3px;">
+                            <?php echo esc_html__('From:', 'wc-all-cart-tracker'); ?>
+                        </label>
+                        <input type="date" id="date-from" name="date_from" 
+                               value="<?php echo esc_attr($date_from); ?>"
+                               max="<?php echo date('Y-m-d'); ?>"
+                               style="padding: 4px 8px;">
+                    </div>
+                    <div>
+                        <label for="date-to" style="display: block; font-size: 12px; margin-bottom: 3px;">
+                            <?php echo esc_html__('To:', 'wc-all-cart-tracker'); ?>
+                        </label>
+                        <input type="date" id="date-to" name="date_to" 
+                               value="<?php echo esc_attr($date_to); ?>"
+                               max="<?php echo date('Y-m-d'); ?>"
+                               style="padding: 4px 8px;">
+                    </div>
+                    <button type="button" id="apply-custom-range" class="button button-primary" 
+                            style="margin-top: 20px;">
+                        <?php echo esc_html__('Apply', 'wc-all-cart-tracker'); ?>
+                    </button>
+                </div>
             </div>
         </div>
+
+        <!-- Display current date range info -->
+        <?php if ($using_custom_range): ?>
+            <div style="background: #e7f5fe; border-left: 4px solid #2271b1; padding: 10px 15px; margin-bottom: 15px;">
+                <strong><?php echo esc_html__('Custom Date Range:', 'wc-all-cart-tracker'); ?></strong>
+                <?php 
+                $from_formatted = date('M d, Y', strtotime($date_from));
+                $to_formatted = date('M d, Y', strtotime($date_to));
+                echo ' ' . esc_html($from_formatted) . ' - ' . esc_html($to_formatted); 
+                ?>
+            </div>
+        <?php endif; ?>
 
         <div class="wc-cart-metrics">
             <div class="metric-card" style="border-left: 4px solid #2271b1;">
@@ -166,6 +221,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
             </div>
         </div>
 
+        <!-- Rest of the metrics cards remain the same -->
         <div class="wc-cart-metrics-detailed">
             <div class="metric-card">
                 <h3 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
@@ -344,7 +400,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'last_updated' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'last_updated', 'order' => $orderby === 'last_updated' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'last_updated', 'order' => $orderby === 'last_updated' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
                         <?php echo esc_html__('Last Updated', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -352,7 +408,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'customer_email' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'customer_email', 'order' => $orderby === 'customer_email' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'customer_email', 'order' => $orderby === 'customer_email' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
                         <?php echo esc_html__('Customer', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -360,7 +416,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'past_purchases' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'past_purchases', 'order' => $orderby === 'past_purchases' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'past_purchases', 'order' => $orderby === 'past_purchases' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
                         <?php echo esc_html__('Past Purchases', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -368,7 +424,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'cart_total' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_total', 'order' => $orderby === 'cart_total' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_total', 'order' => $orderby === 'cart_total' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
                         <?php echo esc_html__('Cart Total', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -381,3 +437,37 @@ $carts = $wpdb->get_results($wpdb->prepare(
         </tbody>
     </table>
 </div>
+
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+    // Handle custom date range visibility
+    $('#days-filter').on('change', function() {
+        const value = $(this).val();
+        if (value === 'custom') {
+            $('#custom-date-range').show();
+        } else {
+            $('#custom-date-range').hide();
+            // Navigate to preset period
+            window.location.href = '<?php echo esc_url(admin_url('admin.php?page=wc-all-cart-tracker')); ?>&days=' + value;
+        }
+    });
+
+    // Apply custom date range
+    $('#apply-custom-range').on('click', function() {
+        const dateFrom = $('#date-from').val();
+        const dateTo = $('#date-to').val();
+        
+        if (!dateFrom || !dateTo) {
+            alert('<?php echo esc_js(__('Please select both start and end dates.', 'wc-all-cart-tracker')); ?>');
+            return;
+        }
+        
+        if (dateFrom > dateTo) {
+            alert('<?php echo esc_js(__('Start date cannot be after end date.', 'wc-all-cart-tracker')); ?>');
+            return;
+        }
+        
+        window.location.href = '<?php echo esc_url(admin_url('admin.php?page=wc-all-cart-tracker')); ?>&days=custom&date_from=' + dateFrom + '&date_to=' + dateTo;
+    });
+});
+</script>
