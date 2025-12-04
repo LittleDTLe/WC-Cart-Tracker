@@ -76,7 +76,7 @@ class WC_Cart_Tracker_Admin
             'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
             'auto_refresh' => array(
                 'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
-                'interval' => 45000,
+                'interval' => 306000,
             )
         ));
     }
@@ -108,8 +108,11 @@ class WC_Cart_Tracker_Admin
         $order = isset($_POST['order']) ? sanitize_text_field($_POST['order']) : 'DESC';
         $limit = isset($_POST['limit']) ? absint($_POST['limit']) : 50; // Add pagination
 
+        // Bypass flag
+        $bypass_cache = isset($_POST['bypass_cache']) && $_POST['bypass_cache'] === 'true';
+
         //Check if Analytics class is available and Clear Cache
-        if (class_exists('WC_Cart_Tracker_Analytics')) {
+        if ($bypass_cache && class_exists('WC_Cart_Tracker_Analytics')) {
             // Clear the cache for the specific time period being viewed
             WC_Cart_Tracker_Analytics::clear_cache($days);
         }
