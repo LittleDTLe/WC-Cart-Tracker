@@ -61,8 +61,8 @@ jQuery(document).ready(function($) {
         refreshButton.prop('disabled', false).text('Refresh Data');
     }
 
-    // --- Core AJAX Logic (Remains unchanged) ---
-    function refreshDashboard() {
+    // --- Core AJAX Logic ---
+    function refreshDashboard(manual_bypass = false) {
         refreshButton.prop('disabled', true).text('Refreshing...');
 
         const currentSortTh = $('table.wp-list-table th.sorted');
@@ -74,7 +74,8 @@ jQuery(document).ready(function($) {
                 action: 'wcat_refresh_dashboard',
                 security: wcat_ajax.nonce,
                 orderby: currentSortTh.find('a').attr('href').match(/orderby=([^&]+)/)?.[1] || 'last_updated',
-                order: currentSortTh.hasClass('asc') ? 'ASC' : 'DESC'
+                order: currentSortTh.hasClass('asc') ? 'ASC' : 'DESC',
+                bypass_cache: manual_bypass,
             },
             success: function(response) {
                 if (response.success) {
@@ -97,6 +98,16 @@ jQuery(document).ready(function($) {
             }
         });
     }
+
+    refreshButton.on('click', function() {
+        refreshDashboard(true); 
+    });
+
+    const pollingFunction = function () {
+        if (!refreshButton.prop('disabled')) {
+            refreshDashboard(false); // Pass false flag
+        }
+    };
 
     // --- Automatic Page Refresh Handler ---
     function startAutoRefresh() {

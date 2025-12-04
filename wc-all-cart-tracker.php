@@ -64,6 +64,14 @@ spl_autoload_register(function ($class) {
     }
 });
 
+spl_autoload_register(
+    function ($class) {
+        if (strpos($class, 'WC_Cart_Tracker_Optimization_Admin') === 0) {
+            $file = WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc' . str_replace('_', '-', strtolower($class)) . '';
+        }
+    }
+);
+
 // Initialize the plugin
 function wc_cart_tracker_init()
 {
@@ -82,3 +90,57 @@ register_activation_hook(__FILE__, function () {
 register_deactivation_hook(__FILE__, function () {
     flush_rewrite_rules();
 });
+
+/**
+ * Register cleanup cron job
+ */
+function wc_cart_tracker_schedule_cleanup()
+{
+    if (!wp_next_scheduled('wc_cart_tracker_cleanup')) {
+        wp_schedule_event(time(), 'daily', 'wc_cart_tracker_cleanup');
+    }
+}
+add_action('wp', 'wc_cart_tracker_schedule_cleanup');
+
+/**
+ * Cleanup old carts (runs daily)
+ * Choose between soft delete (archive) or hard delete (permanent)
+ */
+function wc_cart_tracker_run_cleanup()
+{
+    // Get cleanup settings
+    $cleanup_enabled = get_option('wcat_cleanup_enabled', 'yes');
+    $cleanup_days = get_option('wcat_cleanup_days', 90);
+    $cleanup_method = get_option('wcat_cleanup_method', 'archive'); // 'archive' or 'delete'
+
+    if ($cleanup_enabled !== 'yes') {
+        return;
+    }
+
+    if ($cleanup_method === 'delete') {
+        // PERMANENT DELETION - Use with caution!
+        WC_Cart_Tracker_Database::cleanup_old_carts($cleanup_days, true);
+    } else {
+        // SAFE ARCHIVING - Moves to archive table (recommended)
+        WC_Cart_Tracker_Database::cleanup_old_carts($cleanup_days, false);
+
+        // Optional: Purge very old archives (1 year+)
+        $purge_archives = get_option('wcat_purge_archives', 'no');
+        if ($purge_archives === 'yes') {
+            WC_Cart_Tracker_Database::purge_archive(365);
+        }
+    }
+
+    // Clear analytics cache after cleanup
+    WC_Cart_Tracker_Analytics::clear_cache();
+}
+add_action('wc_cart_tracker_cleanup', 'wc_cart_tracker_run_cleanup');
+
+/**
+ * Deactivation cleanup
+ */
+function wc_cart_tracker_deactivate_cleanup()
+{
+    wp_clear_scheduled_hook('wc_cart_tracker_cleanup');
+}
+register_deactivation_hook(__FILE__, 'wc_cart_tracker_deactivate_cleanup');

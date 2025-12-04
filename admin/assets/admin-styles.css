@@ -109,8 +109,6 @@ details summary:hover {
 	color: #135e96;
 }
 
-/* Toggle Switch for Auto Refresh */
-
 /* Responsive adjustments */
 @media screen and (max-width: 782px) {
 	.wc-cart-metrics,
