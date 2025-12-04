@@ -241,7 +241,7 @@ CREATE TABLE wp_all_carts_tracker (
 | < 1.000 records | 50ms   | 20ms  | 60%         |
 | 1.000 - 10.000  | 200ms  | 60ms  | 70%         |
 | 10.000 - 50.000 | 500ms  | 150ms | 70%         |
-| > 50.000        | 500ms  | 500ms | 69%         |
+| > 50.000        | 800ms  | 250ms | 69%         |
 
 ---
 
@@ -482,16 +482,9 @@ add_filter('wc_cart_tracker_admin_columns', function($columns) {
 
 ### Building for Production
 
-1. Remove development files:
-
+1. Create a ZIP archive:
    ```bash
-   rm -rf .git .gitignore
-   ```
-
-2. Create a ZIP archive:
-   ```bash
-   zip -r wc-all-cart-tracker.zip wc-all-cart-tracker/ \
-       -x "*.git*" "*/versions/*" "*/.DS_Store"
+   zip -r wc-all-cart-tracker.zip wc-all-cart-tracker/
    ```
 
 ---
