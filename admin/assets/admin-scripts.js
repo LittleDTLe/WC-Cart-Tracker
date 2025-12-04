@@ -61,7 +61,7 @@ jQuery(document).ready(function($) {
         refreshButton.prop('disabled', false).text('Refresh Data');
     }
 
-    // --- Core AJAX Logic (Remains unchanged) ---
+    // --- Core AJAX Logic ---
     function refreshDashboard() {
         refreshButton.prop('disabled', true).text('Refreshing...');
 
