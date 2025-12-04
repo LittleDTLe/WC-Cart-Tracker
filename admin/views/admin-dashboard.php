@@ -328,8 +328,12 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
     <div class="tablenav top">
         <div class="alignleft actions">
-            <span
-                class="displaying-num"><?php printf(esc_html__('%d active carts', 'wc-all-cart-tracker'), count($carts)); ?></span>
+            <span class="displaying-num">
+                <?php echo esc_html__('Active Carts:', 'wc-all-cart-tracker'); ?>
+                <strong class="wcat-value" data-key="active_carts">
+                    <?php echo esc_html($analytics['active_carts']); ?>
+                </strong>
+            </span>
         </div>
     </div>
 

@@ -52,7 +52,7 @@ jQuery(document).ready(function($) {
         });
         
         // 2. Update the helper numbers (e.g., "2 / 5 carts tracked")
-        $('.wc-metrics .wcat-meta-value').each(function() {
+        $('.wc-cart-metrics .wcat-meta-value').each(function() {
              const key = $(this).data('key');
              $(this).text(analytics[key]);
         });
