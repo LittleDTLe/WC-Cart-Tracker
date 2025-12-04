@@ -48,46 +48,39 @@ class WC_Cart_Tracker_Admin
 
     public function enqueue_admin_assets($hook)
     {
-        // Get the current page slug
-        $screen = get_current_screen();
-        if (!$screen)
+        if ('woocommerce_page_wc-all-cart-tracker' !== $hook && 'woocommerce_page_wc-cart-history' !== $hook) {
             return;
-
-        // All our plugin pages start with "woocommerce_page_wc-"
-        if (
-            strpos($screen->id, 'woocommerce_page_wc-all-cart-tracker') === 0 ||
-            strpos($screen->id, 'woocommerce_page_wc-cart-history') === 0
-        ) {
-
-            wp_enqueue_style(
-                'wc-cart-tracker-admin',
-                WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-styles.css',
-                array(),
-                WC_CART_TRACKER_VERSION
-            );
-
-            // Only load JS + localize on main dashboard
-            if ($screen->id === 'woocommerce_page_wc-all-cart-tracker') {
-                wp_enqueue_script(
-                    'wc-cart-tracker-admin',
-                    WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-scripts.js',
-                    array('jquery'),
-                    WC_CART_TRACKER_VERSION,
-                    true
-                );
-
-                wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
-                    'ajax_url' => admin_url('admin-ajax.php'),
-                    'nonce' => wp_create_nonce('wcat_ajax_nonce'),
-                    'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
-                    'auto_refresh' => array(
-                        'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
-                        'interval' => 45000,
-                    )
-                ));
-            }
         }
+
+        wp_enqueue_style('wp-admin');
+
+        wp_enqueue_style(
+            'wc-cart-tracker-admin',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-styles.css',
+            array(),
+            WC_CART_TRACKER_VERSION
+        );
+
+        wp_enqueue_script(
+            'wc-cart-tracker-admin',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-scripts.js',
+            array('jquery'),
+            WC_CART_TRACKER_VERSION,
+            true
+        );
+
+        // Localize script with AJAX data
+        wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wcat_ajax_nonce'),
+            'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
+            'auto_refresh' => array(
+                'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
+                'interval' => 45000,
+            )
+        ));
     }
+
     public function render_dashboard_page()
     {
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/admin-dashboard.php';
@@ -115,7 +108,13 @@ class WC_Cart_Tracker_Admin
         $order = isset($_POST['order']) ? sanitize_text_field($_POST['order']) : 'DESC';
         $limit = isset($_POST['limit']) ? absint($_POST['limit']) : 50; // Add pagination
 
-        // Get fresh analytics (with caching)
+        //Check if Analytics class is available and Clear Cache
+        if (class_exists('WC_Cart_Tracker_Analytics')) {
+            // Clear the cache for the specific time period being viewed
+            WC_Cart_Tracker_Analytics::clear_cache($days);
+        }
+
+        // Get fresh analytics
         $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
 
         // Calculate distribution
