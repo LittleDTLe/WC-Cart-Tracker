@@ -1,6 +1,5 @@
 /**
  * Admin Scripts for WC All Cart Tracker with Pagination Support
- * Replace the existing admin-scripts.js file
  */
 jQuery(document).ready(function($) {
 
@@ -10,6 +9,8 @@ jQuery(document).ready(function($) {
     const ajaxUrl = wcat_ajax.ajax_url; 
     const nonce = wcat_ajax.nonce;
     const autoRefreshSettings = wcat_ajax.auto_refresh;
+    // NOTE: Assuming dashboard_url is now localized in wcat_ajax
+    const dashboardUrl = wcat_ajax.dashboard_url; 
 
     const tableBodySelector = '#wcat-active-carts-body';
     const refreshButton = $('#wcat-manual-refresh');
@@ -161,7 +162,7 @@ jQuery(document).ready(function($) {
 
     const pollingFunction = function () {
         if (!refreshButton.prop('disabled')) {
-            refreshDashboard(false); // Pass false flag
+            refreshDashboard(false);
         }
     };
 
@@ -242,4 +243,57 @@ jQuery(document).ready(function($) {
     if (autoRefreshSettings.enabled === 'yes') {
         startAutoRefresh();
     }
+    
+    // ==========================================================
+    // --- FILTER AND PAGINATION NAVIGATION HANDLERS ---
+    // ==========================================================
+    
+    const perPageFilter = $('#per-page-filter');
+    const daysFilter = $('#days-filter');
+    const customDateRange = $('#custom-date-range');
+    const applyCustomRange = $('#apply-custom-range');
+    const dateFromInput = $('#date-from');
+    const dateToInput = $('#date-to');
+    
+    // Handle days filter change (preset periods)
+    daysFilter.on('change', function() {
+        const value = $(this).val();
+        if (value === 'custom') {
+            customDateRange.show();
+        } else {
+            customDateRange.hide();
+            // Navigate to preset period, preserving current per_page setting
+            const currentPerPage = perPageFilter.val() || '50';
+            window.location.href = `${dashboardUrl}&days=${value}&per_page=${currentPerPage}`;
+        }
+    });
+
+    // Handle apply custom date range button
+    applyCustomRange.on('click', function() {
+        const dateFrom = dateFromInput.val();
+        const dateTo = dateToInput.val();
+        const currentPerPage = perPageFilter.val() || '50';
+        
+        if (!dateFrom || !dateTo) {
+            alert('Please select both start and end dates.'); // Translation not available here, keep native JS alert
+            return;
+        }
+        
+        if (dateFrom > dateTo) {
+            alert('Start date cannot be after end date.'); // Translation not available here
+            return;
+        }
+        
+        // Navigate to custom range, preserving current per_page setting
+        window.location.href = `${dashboardUrl}&days=custom&date_from=${dateFrom}&date_to=${dateTo}&per_page=${currentPerPage}`;
+    });
+
+    // Handle per-page change
+    perPageFilter.on('change', function() {
+        const perPage = $(this).val();
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('per_page', perPage);
+        currentUrl.searchParams.delete('paged'); // Reset to page 1
+        window.location.href = currentUrl.toString();
+    });
 });
