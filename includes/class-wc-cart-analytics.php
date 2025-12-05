@@ -32,8 +32,77 @@ class WC_Cart_Tracker_Analytics
         $date_from = date('Y-m-d H:i:s', strtotime("-{$days} days"));
         $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
+        $analytics = self::calculate_analytics($table_name, $date_from, $recent_date);
+
+        // Cache the result
+        set_transient($cache_key, $analytics, self::$cache_expiration);
+
+        return $analytics;
+    }
+
+    /**
+     * Get analytics data for a custom date range
+     *
+     * @param string $date_from Start date (Y-m-d format)
+     * @param string $date_to End date (Y-m-d format)
+     * @return array Analytics data
+     */
+    public static function get_analytics_data_by_date_range($date_from, $date_to)
+    {
+        // Validate dates
+        $date_from = date('Y-m-d', strtotime($date_from)) . ' 00:00:00';
+        $date_to = date('Y-m-d', strtotime($date_to)) . ' 23:59:59';
+
+        $cache_key = self::$cache_group . '_custom_' . md5($date_from . $date_to);
+        $cached_data = get_transient($cache_key);
+
+        if (false !== $cached_data) {
+            return $cached_data;
+        }
+
+        global $wpdb;
+        $table_name = WC_Cart_Tracker_Database::get_table_name();
+
+        $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+        // Use the date_to as the upper bound for queries
+        $analytics = self::calculate_analytics($table_name, $date_from, $recent_date, $date_to);
+
+        // Cache the result
+        set_transient($cache_key, $analytics, self::$cache_expiration);
+
+        return $analytics;
+    }
+
+    /**
+     * Calculate analytics from database queries
+     *
+     * @param string $table_name Database table name
+     * @param string $date_from Start date
+     * @param string $recent_date Date for active cart threshold (24 hours ago)
+     * @param string|null $date_to Optional end date for custom ranges
+     * @return array Analytics data
+     */
+    private static function calculate_analytics($table_name, $date_from, $recent_date, $date_to = null)
+    {
+        global $wpdb;
+
+        // Build WHERE clause for date range
+        if ($date_to !== null) {
+            $date_where = $wpdb->prepare(
+                "last_updated BETWEEN %s AND %s",
+                $date_from,
+                $date_to
+            );
+        } else {
+            $date_where = $wpdb->prepare(
+                "last_updated >= %s",
+                $date_from
+            );
+        }
+
         // Single optimized query for all counts and aggregations
-        $analytics_query = $wpdb->prepare("
+        $analytics_query = "
             SELECT 
                 COUNT(*) as total_carts,
                 SUM(CASE WHEN cart_status = 'converted' THEN 1 ELSE 0 END) as converted_carts,
@@ -53,10 +122,16 @@ class WC_Cart_Tracker_Analytics
                 SUM(CASE WHEN is_active = 1 AND last_updated >= %s THEN cart_total ELSE 0 END) as active_cart_potential,
                 SUM(CASE WHEN is_active = 1 AND last_updated < %s THEN cart_total ELSE 0 END) as abandoned_cart_potential
             FROM {$table_name}
-            WHERE last_updated >= %s
-        ", $recent_date, $recent_date, $recent_date, $recent_date, $date_from);
+            WHERE {$date_where}
+        ";
 
-        $result = $wpdb->get_row($analytics_query);
+        $result = $wpdb->get_row($wpdb->prepare(
+            $analytics_query,
+            $recent_date,
+            $recent_date,
+            $recent_date,
+            $recent_date
+        ));
 
         if (!$result) {
             return self::get_empty_analytics();
@@ -97,9 +172,6 @@ class WC_Cart_Tracker_Analytics
             'guest_conversion_rate' => round($guest_conversion_rate, 2),
         );
 
-        // Cache the result
-        set_transient($cache_key, $analytics, self::$cache_expiration);
-
         return $analytics;
     }
 
@@ -113,6 +185,14 @@ class WC_Cart_Tracker_Analytics
             foreach (array(7, 30, 60, 90) as $day) {
                 delete_transient(self::$cache_group . '_' . $day);
             }
+
+            // Clear custom date range caches (pattern match)
+            global $wpdb;
+            $pattern = $wpdb->esc_like('_transient_' . self::$cache_group . '_custom_') . '%';
+            $wpdb->query($wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+                $pattern
+            ));
         } else {
             delete_transient(self::$cache_group . '_' . $days);
         }

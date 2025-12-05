@@ -13,6 +13,20 @@ jQuery(document).ready(function($) {
     const tableBodySelector = '#wcat-active-carts-body';
     const refreshButton = $('#wcat-manual-refresh');
     
+    // Get current date range parameters
+    function getDateRangeParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const days = urlParams.get('days') || '30';
+        const dateFrom = urlParams.get('date_from') || '';
+        const dateTo = urlParams.get('date_to') || '';
+        
+        return {
+            days: days,
+            date_from: dateFrom,
+            date_to: dateTo
+        };
+    }
+    
     // --- Stable Update Function (Used by AJAX) ---
     function updateMetricCards(data) {
         const analytics = data.analytics;
@@ -66,6 +80,7 @@ jQuery(document).ready(function($) {
         refreshButton.prop('disabled', true).text('Refreshing...');
 
         const currentSortTh = $('table.wp-list-table th.sorted');
+        const dateParams = getDateRangeParams();
         
         $.ajax({
             url: wcat_ajax.ajax_url,
@@ -73,9 +88,12 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'wcat_refresh_dashboard',
                 security: wcat_ajax.nonce,
-                orderby: currentSortTh.find('a').attr('href').match(/orderby=([^&]+)/)?.[1] || 'last_updated',
+                orderby: currentSortTh.find('a').attr('href')?.match(/orderby=([^&]+)/)?.[1] || 'last_updated',
                 order: currentSortTh.hasClass('asc') ? 'ASC' : 'DESC',
                 bypass_cache: manual_bypass,
+                days: dateParams.days,
+                date_from: dateParams.date_from,
+                date_to: dateParams.date_to
             },
             success: function(response) {
                 if (response.success) {

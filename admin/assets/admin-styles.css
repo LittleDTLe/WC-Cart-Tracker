@@ -109,6 +109,54 @@ details summary:hover {
 	color: #135e96;
 }
 
+/* --- Custom Date Range Styling --- */
+#custom-date-range {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 15px;
+	margin-top: 12px;
+	padding: 12px 0 0;
+	border-top: 1px solid #ddd;
+	width: 100%;
+}
+
+/* Each label + input pair stays vertical */
+#custom-date-range > div {
+	display: flex;
+	flex-direction: column;
+	min-width: 140px;
+}
+
+#apply-custom-range {
+	margin-top: 0 !important;
+	align-self: flex-start;
+	height: 36px;
+}
+
+#custom-date-range label {
+	font-size: 12px;
+	margin-bottom: 4px;
+	color: #555;
+}
+
+@media screen and (max-width: 600px) {
+	#custom-date-range {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	#custom-date-range > div {
+		width: 100%;
+	}
+
+	#apply-custom-range {
+		width: 100%;
+	}
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 782px) {
 	.wc-cart-metrics,
