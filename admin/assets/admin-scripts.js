@@ -1,5 +1,5 @@
 /**
- * Admin Scripts for WC All Cart Tracker.
+ * Admin Scripts for WC All Cart Tracker with Pagination Support
  */
 jQuery(document).ready(function($) {
 
@@ -9,6 +9,8 @@ jQuery(document).ready(function($) {
     const ajaxUrl = wcat_ajax.ajax_url; 
     const nonce = wcat_ajax.nonce;
     const autoRefreshSettings = wcat_ajax.auto_refresh;
+    // NOTE: Assuming dashboard_url is now localized in wcat_ajax
+    const dashboardUrl = wcat_ajax.dashboard_url; 
 
     const tableBodySelector = '#wcat-active-carts-body';
     const refreshButton = $('#wcat-manual-refresh');
@@ -25,6 +27,35 @@ jQuery(document).ready(function($) {
             date_from: dateFrom,
             date_to: dateTo
         };
+    }
+    
+    // Get current pagination parameters
+    function getPaginationParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const perPage = urlParams.get('per_page') || '50';
+        const paged = urlParams.get('paged') || '1';
+        
+        return {
+            per_page: perPage,
+            paged: paged
+        };
+    }
+    
+    // Update pagination display
+    function updatePaginationDisplay(data) {
+        const pagination = data.pagination;
+        
+        if (pagination.total_items > 0) {
+            const displayText = 'Showing ' + pagination.start_item + '-' + pagination.end_item + 
+                              ' of ' + pagination.total_items + ' active carts';
+            $('.tablenav .displaying-num').text(displayText);
+        } else {
+            $('.tablenav .displaying-num').text('No active carts');
+        }
+        
+        // Update pagination links if they exist
+        // Note: Full pagination HTML update would require more complex logic
+        // For now, if pagination changes significantly, a full page reload might be better
     }
     
     // --- Stable Update Function (Used by AJAX) ---
@@ -71,6 +102,11 @@ jQuery(document).ready(function($) {
              $(this).text(analytics[key]);
         });
 
+        // 3. Update pagination display
+        if (data.pagination) {
+            updatePaginationDisplay(data);
+        }
+
         // Reset button state and provide visual feedback
         refreshButton.prop('disabled', false).text('Refresh Data');
     }
@@ -81,6 +117,7 @@ jQuery(document).ready(function($) {
 
         const currentSortTh = $('table.wp-list-table th.sorted');
         const dateParams = getDateRangeParams();
+        const paginationParams = getPaginationParams();
         
         $.ajax({
             url: wcat_ajax.ajax_url,
@@ -93,7 +130,9 @@ jQuery(document).ready(function($) {
                 bypass_cache: manual_bypass,
                 days: dateParams.days,
                 date_from: dateParams.date_from,
-                date_to: dateParams.date_to
+                date_to: dateParams.date_to,
+                per_page: paginationParams.per_page,
+                paged: paginationParams.paged
             },
             success: function(response) {
                 if (response.success) {
@@ -123,7 +162,7 @@ jQuery(document).ready(function($) {
 
     const pollingFunction = function () {
         if (!refreshButton.prop('disabled')) {
-            refreshDashboard(false); // Pass false flag
+            refreshDashboard(false);
         }
     };
 
@@ -149,7 +188,9 @@ jQuery(document).ready(function($) {
     }
 
     // Attach click handler for manual refresh
-    refreshButton.on('click', refreshDashboard);
+    refreshButton.on('click', function() {
+        refreshDashboard(true);
+    });
 
     const autoRefreshToggle = $('#wcat-auto-refresh-toggle');
 
@@ -198,7 +239,61 @@ jQuery(document).ready(function($) {
             });
         });
     }
+    
     if (autoRefreshSettings.enabled === 'yes') {
         startAutoRefresh();
     }
+    
+    // ==========================================================
+    // --- FILTER AND PAGINATION NAVIGATION HANDLERS ---
+    // ==========================================================
+    
+    const perPageFilter = $('#per-page-filter');
+    const daysFilter = $('#days-filter');
+    const customDateRange = $('#custom-date-range');
+    const applyCustomRange = $('#apply-custom-range');
+    const dateFromInput = $('#date-from');
+    const dateToInput = $('#date-to');
+    
+    // Handle days filter change (preset periods)
+    daysFilter.on('change', function() {
+        const value = $(this).val();
+        if (value === 'custom') {
+            customDateRange.show();
+        } else {
+            customDateRange.hide();
+            // Navigate to preset period, preserving current per_page setting
+            const currentPerPage = perPageFilter.val() || '50';
+            window.location.href = `${dashboardUrl}&days=${value}&per_page=${currentPerPage}`;
+        }
+    });
+
+    // Handle apply custom date range button
+    applyCustomRange.on('click', function() {
+        const dateFrom = dateFromInput.val();
+        const dateTo = dateToInput.val();
+        const currentPerPage = perPageFilter.val() || '50';
+        
+        if (!dateFrom || !dateTo) {
+            alert('Please select both start and end dates.'); // Translation not available here, keep native JS alert
+            return;
+        }
+        
+        if (dateFrom > dateTo) {
+            alert('Start date cannot be after end date.'); // Translation not available here
+            return;
+        }
+        
+        // Navigate to custom range, preserving current per_page setting
+        window.location.href = `${dashboardUrl}&days=custom&date_from=${dateFrom}&date_to=${dateTo}&per_page=${currentPerPage}`;
+    });
+
+    // Handle per-page change
+    perPageFilter.on('change', function() {
+        const perPage = $(this).val();
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('per_page', perPage);
+        currentUrl.searchParams.delete('paged'); // Reset to page 1
+        window.location.href = currentUrl.toString();
+    });
 });

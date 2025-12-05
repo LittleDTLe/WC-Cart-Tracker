@@ -157,6 +157,27 @@ details summary:hover {
 	}
 }
 
+.wp-list-table th {
+	white-space: nowrap;
+}
+
+.wp-list-table td {
+	vertical-align: top;
+	padding: 12px 10px;
+}
+
+.wp-list-table td ul {
+	margin: 0;
+}
+
+details summary {
+	outline: none;
+}
+
+details[open] summary {
+	margin-bottom: 10px;
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 782px) {
 	.wc-cart-metrics,

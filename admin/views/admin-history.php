@@ -1,6 +1,6 @@
 <?php
 /**
- * View: Cart History Page
+ * View: Cart History Page with Custom Pagination
  *
  * This file is included by WC_Cart_Tracker_Admin::render_history_page()
  *
@@ -71,8 +71,15 @@ $all_count = $wpdb->get_var($wpdb->prepare(
     $date_from
 ));
 
-// Pagination
-$per_page = 50;
+// Custom Pagination - Get user preference or default to 50
+$per_page_options = array(5, 10, 25, 50, 75, 100);
+$per_page = isset($_GET['per_page']) ? absint($_GET['per_page']) : 50;
+
+// Validate per_page value
+if (!in_array($per_page, $per_page_options)) {
+    $per_page = 50;
+}
+
 $current_page = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
 $offset = ($current_page - 1) * $per_page;
 
@@ -141,10 +148,25 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                     </option>
                 </select>
             </div>
+
+            <div>
+                <label for="per-page-filter" style="margin-right: 10px; font-weight: 600;">
+                    <?php echo esc_html__('Show per page:', 'wc-all-cart-tracker'); ?>
+                </label>
+                <select id="per-page-filter" onchange="this.form.submit()" name="per_page" form="filter-form">
+                    <?php foreach ($per_page_options as $option): ?>
+                        <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>>
+                            <?php echo esc_html($option); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
 
         <form id="filter-form" method="get" style="display: none;">
             <input type="hidden" name="page" value="wc-cart-history">
+            <input type="hidden" name="orderby" value="<?php echo esc_attr($orderby); ?>">
+            <input type="hidden" name="order" value="<?php echo esc_attr($order); ?>">
         </form>
     </div>
 
@@ -152,8 +174,13 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
         <div class="alignleft actions">
             <span class="displaying-num">
                 <?php
+                $start_item = ($current_page - 1) * $per_page + 1;
+                $end_item = min($current_page * $per_page, $total_items);
+
                 printf(
-                    esc_html__('%s carts found', 'wc-all-cart-tracker'),
+                    esc_html__('Showing %1$s-%2$s of %3$s carts', 'wc-all-cart-tracker'),
+                    number_format_i18n($start_item),
+                    number_format_i18n($end_item),
                     number_format_i18n($total_items)
                 );
                 ?>
@@ -169,7 +196,8 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                         'days' => $days_filter,
                         'status' => $status_filter,
                         'orderby' => $orderby,
-                        'order' => $order
+                        'order' => $order,
+                        'per_page' => $per_page
                     ), admin_url('admin.php'));
 
                     if ($current_page > 1) {
@@ -202,7 +230,7 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                 <th
                     class="sortable <?php echo $orderby === 'last_updated' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'last_updated', 'order' => $orderby === 'last_updated' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'last_updated', 'order' => $orderby === 'last_updated' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Date', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -210,7 +238,7 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                 <th
                     class="sortable <?php echo $orderby === 'customer_email' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'customer_email', 'order' => $orderby === 'customer_email' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'customer_email', 'order' => $orderby === 'customer_email' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Customer', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -218,7 +246,7 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                 <th
                     class="sortable <?php echo $orderby === 'cart_status' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_status', 'order' => $orderby === 'cart_status' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_status', 'order' => $orderby === 'cart_status' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Status', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -226,7 +254,7 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                 <th
                     class="sortable <?php echo $orderby === 'cart_total' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_total', 'order' => $orderby === 'cart_total' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_total', 'order' => $orderby === 'cart_total' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days_filter, 'status' => $status_filter, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Cart Total', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -363,27 +391,4 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
             </div>
         </div>
     <?php endif; ?>
-
-    <style>
-        .wp-list-table th {
-            white-space: nowrap;
-        }
-
-        .wp-list-table td {
-            vertical-align: top;
-            padding: 12px 10px;
-        }
-
-        .wp-list-table td ul {
-            margin: 0;
-        }
-
-        details summary {
-            outline: none;
-        }
-
-        details[open] summary {
-            margin-bottom: 10px;
-        }
-    </style>
 </div>

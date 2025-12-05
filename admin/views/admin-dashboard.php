@@ -1,6 +1,6 @@
 <?php
 /**
- * View: Active Carts Dashboard
+ * View: Active Carts Dashboard with Pagination
  *
  * This file is included by WC_Cart_Tracker_Admin::render_dashboard_page()
  *
@@ -53,11 +53,36 @@ $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
 
 $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
-// Get ACTIVE carts data (Exclude abandoned carts)
-$carts = $wpdb->get_results($wpdb->prepare(
-    "SELECT * FROM {$table_name} WHERE is_active = %d AND last_updated >= %s ORDER BY {$orderby} {$order}",
+// Custom Pagination - Get user preference or default to 50
+$per_page_options = array(10, 25, 50, 75, 100);
+$per_page = isset($_GET['per_page']) ? absint($_GET['per_page']) : 50;
+
+// Validate per_page value
+if (!in_array($per_page, $per_page_options)) {
+    $per_page = 50;
+}
+
+$current_page = isset($_GET['paged']) ? max(1, absint($_GET['paged'])) : 1;
+$offset = ($current_page - 1) * $per_page;
+
+// Get total count of active carts (for pagination)
+$total_active_carts = $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM {$table_name} WHERE is_active = %d AND last_updated >= %s",
     1,
     $recent_date
+));
+$total_pages = ceil($total_active_carts / $per_page);
+
+// Get ACTIVE carts data with pagination
+$carts = $wpdb->get_results($wpdb->prepare(
+    "SELECT * FROM {$table_name} 
+    WHERE is_active = %d AND last_updated >= %s 
+    ORDER BY {$orderby} {$order}
+    LIMIT %d OFFSET %d",
+    1,
+    $recent_date,
+    $per_page,
+    $offset
 ));
 // --- End Data Retrieval ---
 
@@ -385,12 +410,72 @@ $carts = $wpdb->get_results($wpdb->prepare(
     <div class="tablenav top">
         <div class="alignleft actions">
             <span class="displaying-num">
-                <?php echo esc_html__('Active Carts:', 'wc-all-cart-tracker'); ?>
-                <strong class="wcat-value" data-key="active_carts">
-                    <?php echo esc_html($analytics['active_carts']); ?>
-                </strong>
+                <?php
+                $start_item = ($current_page - 1) * $per_page + 1;
+                $end_item = min($current_page * $per_page, $total_active_carts);
+                
+                if ($total_active_carts > 0) {
+                    printf(
+                        esc_html__('Showing %1$s-%2$s of %3$s active carts', 'wc-all-cart-tracker'),
+                        number_format_i18n($start_item),
+                        number_format_i18n($end_item),
+                        number_format_i18n($total_active_carts)
+                    );
+                } else {
+                    echo esc_html__('No active carts', 'wc-all-cart-tracker');
+                }
+                ?>
             </span>
         </div>
+
+        <div class="alignright" style="display: flex; gap: 10px; align-items: center;">
+            <label for="per-page-filter" style="margin: 0;">
+                <?php echo esc_html__('Show per page:', 'wc-all-cart-tracker'); ?>
+            </label>
+            <select id="per-page-filter" style="width: auto;">
+                <?php foreach ($per_page_options as $option): ?>
+                    <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>>
+                        <?php echo esc_html($option); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <?php if ($total_pages > 1): ?>
+            <div class="tablenav-pages">
+                <span class="pagination-links">
+                    <?php
+                    $base_url = add_query_arg(array(
+                        'page' => 'wc-all-cart-tracker',
+                        'days' => $days,
+                        'date_from' => $date_from,
+                        'date_to' => $date_to,
+                        'orderby' => $orderby,
+                        'order' => $order,
+                        'per_page' => $per_page
+                    ), admin_url('admin.php'));
+
+                    if ($current_page > 1) {
+                        echo '<a class="first-page button" href="' . esc_url(add_query_arg('paged', 1, $base_url)) . '">«</a> ';
+                        echo '<a class="prev-page button" href="' . esc_url(add_query_arg('paged', $current_page - 1, $base_url)) . '">‹</a> ';
+                    }
+
+                    echo '<span class="paging-input">';
+                    echo sprintf(
+                        esc_html__('Page %1$s of %2$s', 'wc-all-cart-tracker'),
+                        number_format_i18n($current_page),
+                        number_format_i18n($total_pages)
+                    );
+                    echo '</span> ';
+
+                    if ($current_page < $total_pages) {
+                        echo '<a class="next-page button" href="' . esc_url(add_query_arg('paged', $current_page + 1, $base_url)) . '">›</a> ';
+                        echo '<a class="last-page button" href="' . esc_url(add_query_arg('paged', $total_pages, $base_url)) . '">»</a>';
+                    }
+                    ?>
+                </span>
+            </div>
+        <?php endif; ?>
     </div>
 
     <table class="wp-list-table widefat fixed striped">
@@ -400,7 +485,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'last_updated' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'last_updated', 'order' => $orderby === 'last_updated' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'last_updated', 'order' => $orderby === 'last_updated' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Last Updated', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -408,7 +493,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'customer_email' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'customer_email', 'order' => $orderby === 'customer_email' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'customer_email', 'order' => $orderby === 'customer_email' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Customer', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -416,7 +501,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'past_purchases' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'past_purchases', 'order' => $orderby === 'past_purchases' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'past_purchases', 'order' => $orderby === 'past_purchases' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Past Purchases', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -424,7 +509,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                 <th
                     class="sortable <?php echo $orderby === 'cart_total' ? 'sorted' : ''; ?> <?php echo strtolower($order) === 'asc' ? 'asc' : 'desc'; ?>">
                     <a
-                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_total', 'order' => $orderby === 'cart_total' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => false))); ?>">
+                        href="<?php echo esc_url(add_query_arg(array('orderby' => 'cart_total', 'order' => $orderby === 'cart_total' && $order === 'DESC' ? 'ASC' : 'DESC', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to, 'per_page' => $per_page, 'paged' => false))); ?>">
                         <?php echo esc_html__('Cart Total', 'wc-all-cart-tracker'); ?>
                         <span class="sorting-indicator"></span>
                     </a>
@@ -436,38 +521,32 @@ $carts = $wpdb->get_results($wpdb->prepare(
             <?php require WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/table-body.php'; ?>
         </tbody>
     </table>
+
+    <?php if ($total_pages > 1): ?>
+        <div class="tablenav bottom">
+            <div class="tablenav-pages">
+                <span class="pagination-links">
+                    <?php
+                    if ($current_page > 1) {
+                        echo '<a class="first-page button" href="' . esc_url(add_query_arg('paged', 1, $base_url)) . '">«</a> ';
+                        echo '<a class="prev-page button" href="' . esc_url(add_query_arg('paged', $current_page - 1, $base_url)) . '">‹</a> ';
+                    }
+
+                    echo '<span class="paging-input">';
+                    echo sprintf(
+                        esc_html__('Page %1$s of %2$s', 'wc-all-cart-tracker'),
+                        number_format_i18n($current_page),
+                        number_format_i18n($total_pages)
+                    );
+                    echo '</span> ';
+
+                    if ($current_page < $total_pages) {
+                        echo '<a class="next-page button" href="' . esc_url(add_query_arg('paged', $current_page + 1, $base_url)) . '">›</a> ';
+                        echo '<a class="last-page button" href="' . esc_url(add_query_arg('paged', $total_pages, $base_url)) . '">»</a>';
+                    }
+                    ?>
+                </span>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
-
-<script type="text/javascript">
-jQuery(document).ready(function($) {
-    // Handle custom date range visibility
-    $('#days-filter').on('change', function() {
-        const value = $(this).val();
-        if (value === 'custom') {
-            $('#custom-date-range').show();
-        } else {
-            $('#custom-date-range').hide();
-            // Navigate to preset period
-            window.location.href = '<?php echo esc_url(admin_url('admin.php?page=wc-all-cart-tracker')); ?>&days=' + value;
-        }
-    });
-
-    // Apply custom date range
-    $('#apply-custom-range').on('click', function() {
-        const dateFrom = $('#date-from').val();
-        const dateTo = $('#date-to').val();
-        
-        if (!dateFrom || !dateTo) {
-            alert('<?php echo esc_js(__('Please select both start and end dates.', 'wc-all-cart-tracker')); ?>');
-            return;
-        }
-        
-        if (dateFrom > dateTo) {
-            alert('<?php echo esc_js(__('Start date cannot be after end date.', 'wc-all-cart-tracker')); ?>');
-            return;
-        }
-        
-        window.location.href = '<?php echo esc_url(admin_url('admin.php?page=wc-all-cart-tracker')); ?>&days=custom&date_from=' + dateFrom + '&date_to=' + dateTo;
-    });
-});
-</script>
