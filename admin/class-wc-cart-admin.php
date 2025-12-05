@@ -108,7 +108,17 @@ class WC_Cart_Tracker_Admin
         $date_to = isset($_POST['date_to']) ? sanitize_text_field($_POST['date_to']) : '';
         $orderby = isset($_POST['orderby']) ? sanitize_text_field($_POST['orderby']) : 'last_updated';
         $order = isset($_POST['order']) ? sanitize_text_field($_POST['order']) : 'DESC';
-        $limit = isset($_POST['limit']) ? absint($_POST['limit']) : 50;
+
+        // Pagination parameters
+        $per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 50;
+        $current_page = isset($_POST['paged']) ? max(1, absint($_POST['paged'])) : 1;
+        $offset = ($current_page - 1) * $per_page;
+
+        // Validate per_page value
+        $per_page_options = array(10, 25, 50, 75, 100);
+        if (!in_array($per_page, $per_page_options)) {
+            $per_page = 50;
+        }
 
         // Bypass flag
         $bypass_cache = isset($_POST['bypass_cache']) && $_POST['bypass_cache'] === 'true';
@@ -137,16 +147,25 @@ class WC_Cart_Tracker_Admin
         $analytics['guest_distribution'] = $total_carts_by_type > 0 ?
             round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
 
-        // Get fresh carts for table with limit
+        // Get fresh carts for table with pagination
         $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+        // Get total count for pagination info
+        $total_active_carts = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_name} WHERE is_active = %d AND last_updated >= %s",
+            1,
+            $recent_date
+        ));
+
         $carts = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$table_name} 
         WHERE is_active = %d AND last_updated >= %s 
         ORDER BY {$orderby} {$order}
-        LIMIT %d",
+        LIMIT %d OFFSET %d",
             1,
             $recent_date,
-            $limit
+            $per_page,
+            $offset
         ));
 
         // Generate table body HTML
@@ -160,6 +179,11 @@ class WC_Cart_Tracker_Admin
             $recent_date
         ));
 
+        // Calculate pagination info
+        $total_pages = ceil($total_active_carts / $per_page);
+        $start_item = ($current_page - 1) * $per_page + 1;
+        $end_item = min($current_page * $per_page, $total_active_carts);
+
         wp_send_json_success(array(
             'analytics' => $analytics,
             'tableBody' => $tableBody,
@@ -169,6 +193,14 @@ class WC_Cart_Tracker_Admin
             'active_cart_potential_html' => wc_price($analytics['active_cart_potential']),
             'abandoned_cart_potential_html' => wc_price($analytics['abandoned_cart_potential']),
             'max_cart_total_html' => wc_price($max_cart_total ?: 0),
+            'pagination' => array(
+                'total_items' => $total_active_carts,
+                'total_pages' => $total_pages,
+                'current_page' => $current_page,
+                'per_page' => $per_page,
+                'start_item' => $start_item,
+                'end_item' => $end_item
+            )
         ));
     }
 
