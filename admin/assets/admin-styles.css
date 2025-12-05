@@ -110,41 +110,37 @@ details summary:hover {
 }
 
 /* --- Custom Date Range Styling --- */
-/* Custom Date Range – appears under the dropdown, but inputs side-by-side */
 #custom-date-range {
 	display: flex;
 	flex-direction: row;
-	flex-wrap: wrap; /* allows wrapping on very small screens only */
-	align-items: flex-end; /* aligns the Apply button with the bottom of the inputs */
-	gap: 15px; /* space between From, To, and Apply */
-	margin-top: 12px; /* small gap below the dropdown */
-	padding: 12px 0 0; /* subtle top padding instead of a border */
-	border-top: 1px solid #ddd; /* optional separator line */
-	width: 100%; /* ensures it takes full width under the dropdown */
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 15px;
+	margin-top: 12px;
+	padding: 12px 0 0;
+	border-top: 1px solid #ddd;
+	width: 100%;
 }
 
 /* Each label + input pair stays vertical */
 #custom-date-range > div {
 	display: flex;
 	flex-direction: column;
-	min-width: 140px; /* prevents inputs from getting too squished */
+	min-width: 140px;
 }
 
-/* Remove the forced top margin on the Apply button that was pushing it down */
 #apply-custom-range {
 	margin-top: 0 !important;
 	align-self: flex-start;
-	height: 36px; /* matches typical input height for perfect alignment */
+	height: 36px;
 }
 
-/* Keep labels small and tight */
 #custom-date-range label {
 	font-size: 12px;
 	margin-bottom: 4px;
 	color: #555;
 }
 
-/* Mobile fallback – stack if screen is very narrow */
 @media screen and (max-width: 600px) {
 	#custom-date-range {
 		flex-direction: column;
