@@ -160,14 +160,14 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
         <!-- Display current date range info -->
         <?php if ($using_custom_range): ?>
-            <div style="background: #e7f5fe; border-left: 4px solid #2271b1; padding: 10px 15px; margin-bottom: 15px;">
-                <strong><?php echo esc_html__('Custom Date Range:', 'wc-all-cart-tracker'); ?></strong>
-                <?php 
-                $from_formatted = date('M d, Y', strtotime($date_from));
-                $to_formatted = date('M d, Y', strtotime($date_to));
-                echo ' ' . esc_html($from_formatted) . ' - ' . esc_html($to_formatted); 
-                ?>
-            </div>
+                <div style="background: #e7f5fe; border-left: 4px solid #2271b1; padding: 10px 15px; margin-bottom: 15px;">
+                    <strong><?php echo esc_html__('Custom Date Range:', 'wc-all-cart-tracker'); ?></strong>
+                    <?php
+                    $from_formatted = date('M d, Y', strtotime($date_from));
+                    $to_formatted = date('M d, Y', strtotime($date_to));
+                    echo ' ' . esc_html($from_formatted) . ' - ' . esc_html($to_formatted);
+                    ?>
+                </div>
         <?php endif; ?>
 
         <div class="wc-cart-metrics">
@@ -408,25 +408,20 @@ $carts = $wpdb->get_results($wpdb->prepare(
     <h2><?php echo esc_html__('Active Carts', 'wc-all-cart-tracker'); ?></h2>
 
     <div class="tablenav top">
-        <div class="alignleft actions">
-            <span class="displaying-num">
-                <?php
-                $start_item = ($current_page - 1) * $per_page + 1;
-                $end_item = min($current_page * $per_page, $total_active_carts);
-                
-                if ($total_active_carts > 0) {
-                    printf(
-                        esc_html__('Showing %1$s-%2$s of %3$s active carts', 'wc-all-cart-tracker'),
-                        number_format_i18n($start_item),
-                        number_format_i18n($end_item),
-                        number_format_i18n($total_active_carts)
-                    );
-                } else {
-                    echo esc_html__('No active carts', 'wc-all-cart-tracker');
-                }
-                ?>
-            </span>
-        </div>
+       <div class="alignleft actions">
+    <span class="displaying-num">
+        <?php
+            if ($total_active_carts > 0) {
+                printf(
+                    esc_html(_n('%s active cart', '%s active carts', $total_active_carts, 'wc-all-cart-tracker')),
+                    number_format_i18n($total_active_carts)
+                );
+            } else {
+                echo esc_html__('No active carts', 'wc-all-cart-tracker');
+            }
+            ?>
+        </span>
+    </div>
 
         <div class="alignright" style="display: flex; gap: 10px; align-items: center;">
             <label for="per-page-filter" style="margin: 0;">
@@ -434,47 +429,47 @@ $carts = $wpdb->get_results($wpdb->prepare(
             </label>
             <select id="per-page-filter" style="width: auto;">
                 <?php foreach ($per_page_options as $option): ?>
-                    <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>>
-                        <?php echo esc_html($option); ?>
-                    </option>
+                        <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>>
+                            <?php echo esc_html($option); ?>
+                        </option>
                 <?php endforeach; ?>
             </select>
         </div>
 
         <?php if ($total_pages > 1): ?>
-            <div class="tablenav-pages">
-                <span class="pagination-links">
-                    <?php
-                    $base_url = add_query_arg(array(
-                        'page' => 'wc-all-cart-tracker',
-                        'days' => $days,
-                        'date_from' => $date_from,
-                        'date_to' => $date_to,
-                        'orderby' => $orderby,
-                        'order' => $order,
-                        'per_page' => $per_page
-                    ), admin_url('admin.php'));
+                <div class="tablenav-pages">
+                    <span class="pagination-links">
+                        <?php
+                        $base_url = add_query_arg(array(
+                            'page' => 'wc-all-cart-tracker',
+                            'days' => $days,
+                            'date_from' => $date_from,
+                            'date_to' => $date_to,
+                            'orderby' => $orderby,
+                            'order' => $order,
+                            'per_page' => $per_page
+                        ), admin_url('admin.php'));
 
-                    if ($current_page > 1) {
-                        echo '<a class="first-page button" href="' . esc_url(add_query_arg('paged', 1, $base_url)) . '">«</a> ';
-                        echo '<a class="prev-page button" href="' . esc_url(add_query_arg('paged', $current_page - 1, $base_url)) . '">‹</a> ';
-                    }
+                        if ($current_page > 1) {
+                            echo '<a class="first-page button" href="' . esc_url(add_query_arg('paged', 1, $base_url)) . '">«</a> ';
+                            echo '<a class="prev-page button" href="' . esc_url(add_query_arg('paged', $current_page - 1, $base_url)) . '">‹</a> ';
+                        }
 
-                    echo '<span class="paging-input">';
-                    echo sprintf(
-                        esc_html__('Page %1$s of %2$s', 'wc-all-cart-tracker'),
-                        number_format_i18n($current_page),
-                        number_format_i18n($total_pages)
-                    );
-                    echo '</span> ';
+                        echo '<span class="paging-input">';
+                        echo sprintf(
+                            esc_html__('Page %1$s of %2$s', 'wc-all-cart-tracker'),
+                            number_format_i18n($current_page),
+                            number_format_i18n($total_pages)
+                        );
+                        echo '</span> ';
 
-                    if ($current_page < $total_pages) {
-                        echo '<a class="next-page button" href="' . esc_url(add_query_arg('paged', $current_page + 1, $base_url)) . '">›</a> ';
-                        echo '<a class="last-page button" href="' . esc_url(add_query_arg('paged', $total_pages, $base_url)) . '">»</a>';
-                    }
-                    ?>
-                </span>
-            </div>
+                        if ($current_page < $total_pages) {
+                            echo '<a class="next-page button" href="' . esc_url(add_query_arg('paged', $current_page + 1, $base_url)) . '">›</a> ';
+                            echo '<a class="last-page button" href="' . esc_url(add_query_arg('paged', $total_pages, $base_url)) . '">»</a>';
+                        }
+                        ?>
+                    </span>
+                </div>
         <?php endif; ?>
     </div>
 
@@ -521,6 +516,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
             <?php require WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/table-body.php'; ?>
         </tbody>
     </table>
+
 
     <?php if ($total_pages > 1): ?>
         <div class="tablenav bottom">

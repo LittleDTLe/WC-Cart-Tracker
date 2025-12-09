@@ -43,19 +43,17 @@ jQuery(document).ready(function($) {
     
     // Update pagination display
     function updatePaginationDisplay(data) {
-        const pagination = data.pagination;
+        const totalItems = pagination.total_items;
         
-        if (pagination.total_items > 0) {
-            const displayText = 'Showing ' + pagination.start_item + '-' + pagination.end_item + 
-                              ' of ' + pagination.total_items + ' active carts';
-            $('.tablenav .displaying-num').text(displayText);
-        } else {
+        // Check if totalItems is 0
+        if (totalItems <= 0) {
             $('.tablenav .displaying-num').text('No active carts');
+            return;
         }
+        const cartWord = totalItems === 1 ? 'cart' : 'carts';
+        const displayText = totalItems + ' active ' + cartWord;
         
-        // Update pagination links if they exist
-        // Note: Full pagination HTML update would require more complex logic
-        // For now, if pagination changes significantly, a full page reload might be better
+        $('.tablenav .displaying-num').text(displayText);
     }
     
     // --- Stable Update Function (Used by AJAX) ---
@@ -275,12 +273,12 @@ jQuery(document).ready(function($) {
         const currentPerPage = perPageFilter.val() || '50';
         
         if (!dateFrom || !dateTo) {
-            alert('Please select both start and end dates.'); // Translation not available here, keep native JS alert
+            alert('Please select both start and end dates.');
             return;
         }
         
         if (dateFrom > dateTo) {
-            alert('Start date cannot be after end date.'); // Translation not available here
+            alert('Start date cannot be after end date.'); 
             return;
         }
         
