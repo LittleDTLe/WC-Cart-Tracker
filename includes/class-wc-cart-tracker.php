@@ -54,6 +54,9 @@ class WC_Cart_Tracker
         // Load analytics handler
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-analytics.php';
 
+        // Load exporter
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export.php';
+
         // Load admin if in admin area
         if (is_admin()) {
             require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-admin.php';

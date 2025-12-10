@@ -100,66 +100,113 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
 
     <div style="background: #fff; border: 1px solid #c3c4c7; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-            <div>
-                <label for="days-filter" style="margin-right: 10px; font-weight: 600;">
-                    <?php echo esc_html__('Time Period:', 'wc-all-cart-tracker'); ?>
-                </label>
-                <select id="days-filter" onchange="this.form.submit()" name="days" form="filter-form">
-                    <option value="7" <?php selected($days_filter, 7); ?>>
-                        <?php echo esc_html__('Last 7 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="30" <?php selected($days_filter, 30); ?>>
-                        <?php echo esc_html__('Last 30 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="60" <?php selected($days_filter, 60); ?>>
-                        <?php echo esc_html__('Last 60 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="90" <?php selected($days_filter, 90); ?>>
-                        <?php echo esc_html__('Last 90 Days', 'wc-all-cart-tracker'); ?>
-                    </option>
-                    <option value="365" <?php selected($days_filter, 365); ?>>
-                        <?php echo esc_html__('Last Year', 'wc-all-cart-tracker'); ?>
-                    </option>
-                </select>
-            </div>
-
-            <div>
-                <label for="status-filter" style="margin-right: 10px; font-weight: 600;">
-                    <?php echo esc_html__('Status:', 'wc-all-cart-tracker'); ?>
-                </label>
-                <select id="status-filter" onchange="this.form.submit()" name="status" form="filter-form">
-                    <option value="all" <?php selected($status_filter, 'all'); ?>>
-                        <?php echo esc_html__('All', 'wc-all-cart-tracker'); ?> (<?php echo esc_html($all_count); ?>)
-                    </option>
-                    <option value="converted" <?php selected($status_filter, 'converted'); ?>>
-                        <?php echo esc_html__('Converted', 'wc-all-cart-tracker'); ?>
-                        (<?php echo esc_html($converted_count); ?>)
-                    </option>
-                    <option value="deleted" <?php selected($status_filter, 'deleted'); ?>>
-                        <?php echo esc_html__('Deleted', 'wc-all-cart-tracker'); ?>
-                        (<?php echo esc_html($deleted_count); ?>)
-                    </option>
-                    <option value="abandoned" <?php selected($status_filter, 'abandoned'); ?>>
-                        <?php echo esc_html__('Abandoned', 'wc-all-cart-tracker'); ?>
-                        (<?php echo esc_html($abandoned_count); ?>)
-                    </option>
-                    <option value="inactive" <?php selected($status_filter, 'inactive'); ?>>
-                        <?php echo esc_html__('All Inactive', 'wc-all-cart-tracker'); ?>
-                    </option>
-                </select>
-            </div>
-
-            <div>
-                <label for="per-page-filter" style="margin-right: 10px; font-weight: 600;">
-                    <?php echo esc_html__('Show per page:', 'wc-all-cart-tracker'); ?>
-                </label>
-                <select id="per-page-filter" onchange="this.form.submit()" name="per_page" form="filter-form">
-                    <?php foreach ($per_page_options as $option): ?>
-                        <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>>
-                            <?php echo esc_html($option); ?>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <label for="days-filter" style="margin-right: 10px; font-weight: 600;">
+                        <?php echo esc_html__('Time Period:', 'wc-all-cart-tracker'); ?>
+                    </label>
+                    <select id="days-filter" onchange="this.form.submit()" name="days" form="filter-form">
+                        <option value="7" <?php selected($days_filter, 7); ?>>
+                            <?php echo esc_html__('Last 7 Days', 'wc-all-cart-tracker'); ?>
                         </option>
-                    <?php endforeach; ?>
-                </select>
+                        <option value="30" <?php selected($days_filter, 30); ?>>
+                            <?php echo esc_html__('Last 30 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="60" <?php selected($days_filter, 60); ?>>
+                            <?php echo esc_html__('Last 60 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="90" <?php selected($days_filter, 90); ?>>
+                            <?php echo esc_html__('Last 90 Days', 'wc-all-cart-tracker'); ?>
+                        </option>
+                        <option value="365" <?php selected($days_filter, 365); ?>>
+                            <?php echo esc_html__('Last Year', 'wc-all-cart-tracker'); ?>
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="status-filter" style="margin-right: 10px; font-weight: 600;">
+                        <?php echo esc_html__('Status:', 'wc-all-cart-tracker'); ?>
+                    </label>
+                    <select id="status-filter" onchange="this.form.submit()" name="status" form="filter-form">
+                        <option value="all" <?php selected($status_filter, 'all'); ?>>
+                            <?php echo esc_html__('All', 'wc-all-cart-tracker'); ?>
+                            (<?php echo esc_html($all_count); ?>)
+                        </option>
+                        <option value="converted" <?php selected($status_filter, 'converted'); ?>>
+                            <?php echo esc_html__('Converted', 'wc-all-cart-tracker'); ?>
+                            (<?php echo esc_html($converted_count); ?>)
+                        </option>
+                        <option value="deleted" <?php selected($status_filter, 'deleted'); ?>>
+                            <?php echo esc_html__('Deleted', 'wc-all-cart-tracker'); ?>
+                            (<?php echo esc_html($deleted_count); ?>)
+                        </option>
+                        <option value="abandoned" <?php selected($status_filter, 'abandoned'); ?>>
+                            <?php echo esc_html__('Abandoned', 'wc-all-cart-tracker'); ?>
+                            (<?php echo esc_html($abandoned_count); ?>)
+                        </option>
+                        <option value="inactive" <?php selected($status_filter, 'inactive'); ?>>
+                            <?php echo esc_html__('All Inactive', 'wc-all-cart-tracker'); ?>
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="per-page-filter" style="margin-right: 10px; font-weight: 600;">
+                        <?php echo esc_html__('Show per page:', 'wc-all-cart-tracker'); ?>
+                    </label>
+                    <select id="per-page-filter" onchange="this.form.submit()" name="per_page" form="filter-form">
+                        <?php foreach ($per_page_options as $option): ?>
+                            <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>>
+                                <?php echo esc_html($option); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Export Dropdown Button -->
+            <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
+                <button class="button button-primary wcat-export-trigger" type="button">
+                    <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
+                    <?php esc_html_e('Export History', 'wc-all-cart-tracker'); ?> ▾
+                </button>
+                <div class="wcat-export-menu"
+                    style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; min-width: 200px; margin-top: 5px;">
+                    <div
+                        style="padding: 10px 15px; border-bottom: 1px solid #f0f0f1; background: #f6f7f7; font-weight: 600; font-size: 12px; color: #646970;">
+                        <?php esc_html_e('Export Format', 'wc-all-cart-tracker'); ?>
+                    </div>
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('wcat_export' => 'cart_history', 'format' => 'csv', 'days' => $days_filter, 'status' => $status_filter)), 'wcat_export_nonce')); ?>"
+                        class="wcat-export-option"
+                        style="display: block; padding: 10px 15px; text-decoration: none; color: #2271b1; border-bottom: 1px solid #f0f0f1;">
+                        <span class="dashicons dashicons-media-spreadsheet"
+                            style="margin-right: 8px; color: #00a32a;"></span>
+                        <strong><?php esc_html_e('CSV', 'wc-all-cart-tracker'); ?></strong>
+                        <br>
+                        <small
+                            style="color: #646970;"><?php esc_html_e('Compatible with Excel, Numbers', 'wc-all-cart-tracker'); ?></small>
+                    </a>
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('wcat_export' => 'cart_history', 'format' => 'excel', 'days' => $days_filter, 'status' => $status_filter)), 'wcat_export_nonce')); ?>"
+                        class="wcat-export-option"
+                        style="display: block; padding: 10px 15px; text-decoration: none; color: #2271b1; border-bottom: 1px solid #f0f0f1;">
+                        <span class="dashicons dashicons-media-document"
+                            style="margin-right: 8px; color: #2271b1;"></span>
+                        <strong><?php esc_html_e('Excel', 'wc-all-cart-tracker'); ?></strong>
+                        <br>
+                        <small
+                            style="color: #646970;"><?php esc_html_e('Microsoft Excel format', 'wc-all-cart-tracker'); ?></small>
+                    </a>
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('wcat_export' => 'cart_history', 'format' => 'google_sheets', 'days' => $days_filter, 'status' => $status_filter)), 'wcat_export_nonce')); ?>"
+                        class="wcat-export-option"
+                        style="display: block; padding: 10px 15px; text-decoration: none; color: #2271b1;">
+                        <span class="dashicons dashicons-cloud" style="margin-right: 8px; color: #f0b849;"></span>
+                        <strong><?php esc_html_e('Google Sheets', 'wc-all-cart-tracker'); ?></strong>
+                        <br>
+                        <small
+                            style="color: #646970;"><?php esc_html_e('Import to Google Sheets', 'wc-all-cart-tracker'); ?></small>
+                    </a>
+                </div>
             </div>
         </div>
 

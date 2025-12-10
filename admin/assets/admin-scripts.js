@@ -325,4 +325,27 @@ jQuery(document).ready(function($) {
         currentUrl.searchParams.delete('paged'); // Reset to page 1
         window.location.href = currentUrl.toString();
     });
+
+
+    // ==========================================================
+    // --- EXPORT DROPDOWN FUNCTIONALITY ---
+    // ==========================================================
+
+    // Toggle export dropdown
+    $('.wcat-export-trigger').on('click', function(e) {
+        e.stopPropagation();
+        $('.wcat-export-menu').toggle();
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.wcat-export-dropdown').length) {
+            $('.wcat-export-menu').hide();
+        }
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    $('.wcat-export-menu').on('click', function(e) {
+        e.stopPropagation();
+    });
 });
