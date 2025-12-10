@@ -14,6 +14,9 @@ class WC_Cart_Tracker_Analytics
     private static $cache_group = 'wc_cart_analytics';
     private static $cache_expiration = 300; // 5 minutes
 
+    // Revenue potential cutoff (in days) - carts older than this won't count toward revenue potential
+    const REVENUE_CUTOFF_DAYS = 7;
+
     /**
      * Get analytics data with caching and optimized queries
      */
@@ -31,8 +34,9 @@ class WC_Cart_Tracker_Analytics
 
         $date_from = date('Y-m-d H:i:s', strtotime("-{$days} days"));
         $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        $revenue_cutoff_date = date('Y-m-d H:i:s', strtotime('-' . self::REVENUE_CUTOFF_DAYS . ' days'));
 
-        $analytics = self::calculate_analytics($table_name, $date_from, $recent_date);
+        $analytics = self::calculate_analytics($table_name, $date_from, $recent_date, null, $revenue_cutoff_date);
 
         // Cache the result
         set_transient($cache_key, $analytics, self::$cache_expiration);
@@ -64,9 +68,10 @@ class WC_Cart_Tracker_Analytics
         $table_name = WC_Cart_Tracker_Database::get_table_name();
 
         $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        $revenue_cutoff_date = date('Y-m-d H:i:s', strtotime('-' . self::REVENUE_CUTOFF_DAYS . ' days'));
 
         // Use the date_to as the upper bound for queries
-        $analytics = self::calculate_analytics($table_name, $date_from, $recent_date, $date_to);
+        $analytics = self::calculate_analytics($table_name, $date_from, $recent_date, $date_to, $revenue_cutoff_date);
 
         // Cache the result
         set_transient($cache_key, $analytics, self::$cache_expiration);
@@ -81,9 +86,10 @@ class WC_Cart_Tracker_Analytics
      * @param string $date_from Start date
      * @param string $recent_date Date for active cart threshold (24 hours ago)
      * @param string|null $date_to Optional end date for custom ranges
+     * @param string $revenue_cutoff_date Cutoff date for revenue potential (7 days ago)
      * @return array Analytics data
      */
-    private static function calculate_analytics($table_name, $date_from, $recent_date, $date_to = null)
+    private static function calculate_analytics($table_name, $date_from, $recent_date, $date_to = null, $revenue_cutoff_date)
     {
         global $wpdb;
 
@@ -118,19 +124,35 @@ class WC_Cart_Tracker_Analytics
                 AVG(CASE WHEN is_active = 1 THEN cart_total ELSE NULL END) as avg_active_cart,
                 AVG(CASE WHEN cart_status = 'converted' THEN cart_total ELSE NULL END) as avg_converted_cart,
                 
-                SUM(CASE WHEN is_active = 1 THEN cart_total ELSE 0 END) as overall_revenue_potential,
+                -- Overall revenue potential: Only count carts updated within last 7 days
+                SUM(CASE WHEN is_active = 1 AND last_updated >= %s THEN cart_total ELSE 0 END) as overall_revenue_potential,
+                
+                -- Active cart potential: Carts updated within last 24 hours
                 SUM(CASE WHEN is_active = 1 AND last_updated >= %s THEN cart_total ELSE 0 END) as active_cart_potential,
-                SUM(CASE WHEN is_active = 1 AND last_updated < %s THEN cart_total ELSE 0 END) as abandoned_cart_potential
+                
+                -- Abandoned cart potential: Carts between 24 hours and 7 days old
+                SUM(CASE WHEN is_active = 1 AND last_updated < %s AND last_updated >= %s THEN cart_total ELSE 0 END) as abandoned_cart_potential,
+                
+                -- Count of stale carts (older than 7 days but still active)
+                SUM(CASE WHEN is_active = 1 AND last_updated < %s THEN 1 ELSE 0 END) as stale_carts,
+                
+                -- Total value of stale carts (excluded from revenue potential)
+                SUM(CASE WHEN is_active = 1 AND last_updated < %s THEN cart_total ELSE 0 END) as stale_cart_value
+                
             FROM {$table_name}
             WHERE {$date_where}
         ";
 
         $result = $wpdb->get_row($wpdb->prepare(
             $analytics_query,
-            $recent_date,
-            $recent_date,
-            $recent_date,
-            $recent_date
+            $recent_date,              // active_carts threshold
+            $recent_date,              // abandoned_carts threshold
+            $revenue_cutoff_date,      // overall_revenue_potential cutoff
+            $recent_date,              // active_cart_potential threshold
+            $recent_date,              // abandoned_cart_potential lower bound
+            $revenue_cutoff_date,      // abandoned_cart_potential upper bound
+            $revenue_cutoff_date,      // stale_carts threshold
+            $revenue_cutoff_date       // stale_cart_value threshold
         ));
 
         if (!$result) {
@@ -157,11 +179,13 @@ class WC_Cart_Tracker_Analytics
             'deleted_carts' => intval($result->deleted_carts),
             'active_carts' => intval($result->active_carts),
             'abandoned_carts' => $abandoned_carts,
+            'stale_carts' => intval($result->stale_carts),
             'avg_active_cart' => floatval($result->avg_active_cart) ?: 0,
             'avg_converted_cart' => floatval($result->avg_converted_cart) ?: 0,
             'overall_revenue_potential' => floatval($result->overall_revenue_potential) ?: 0,
             'active_cart_potential' => floatval($result->active_cart_potential) ?: 0,
             'abandoned_cart_potential' => floatval($result->abandoned_cart_potential) ?: 0,
+            'stale_cart_value' => floatval($result->stale_cart_value) ?: 0,
             'conversion_rate' => round($conversion_rate, 2),
             'abandonment_rate' => round($abandonment_rate, 2),
             'registered_carts' => $registered_carts,
@@ -209,11 +233,13 @@ class WC_Cart_Tracker_Analytics
             'deleted_carts' => 0,
             'active_carts' => 0,
             'abandoned_carts' => 0,
+            'stale_carts' => 0,
             'avg_active_cart' => 0,
             'avg_converted_cart' => 0,
             'overall_revenue_potential' => 0,
             'active_cart_potential' => 0,
             'abandoned_cart_potential' => 0,
+            'stale_cart_value' => 0,
             'conversion_rate' => 0,
             'abandonment_rate' => 0,
             'registered_carts' => 0,

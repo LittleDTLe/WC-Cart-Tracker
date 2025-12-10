@@ -9,7 +9,6 @@ jQuery(document).ready(function($) {
     const ajaxUrl = wcat_ajax.ajax_url; 
     const nonce = wcat_ajax.nonce;
     const autoRefreshSettings = wcat_ajax.auto_refresh;
-    // NOTE: Assuming dashboard_url is now localized in wcat_ajax
     const dashboardUrl = wcat_ajax.dashboard_url; 
 
     const tableBodySelector = '#wcat-active-carts-body';
@@ -43,7 +42,7 @@ jQuery(document).ready(function($) {
     
     // Update pagination display
     function updatePaginationDisplay(data) {
-        const totalItems = pagination.total_items;
+        const totalItems = data.pagination.total_items;
         
         // Check if totalItems is 0
         if (totalItems <= 0) {
@@ -97,16 +96,15 @@ jQuery(document).ready(function($) {
         // 2. Update the helper numbers (e.g., "2 / 5 carts tracked")
         $('.wc-cart-metrics .wcat-meta-value').each(function() {
              const key = $(this).data('key');
-             $(this).text(analytics[key]);
+             if (analytics[key] !== undefined) {
+                 $(this).text(analytics[key]);
+             }
         });
 
         // 3. Update pagination display
         if (data.pagination) {
             updatePaginationDisplay(data);
         }
-
-        // Reset button state and provide visual feedback
-        refreshButton.prop('disabled', false).text('Refresh Data');
     }
 
     // --- Core AJAX Logic ---
@@ -118,11 +116,11 @@ jQuery(document).ready(function($) {
         const paginationParams = getPaginationParams();
         
         $.ajax({
-            url: wcat_ajax.ajax_url,
+            url: ajaxUrl,
             type: 'POST',
             data: {
                 action: 'wcat_refresh_dashboard',
-                security: wcat_ajax.nonce,
+                security: nonce,
                 orderby: currentSortTh.find('a').attr('href')?.match(/orderby=([^&]+)/)?.[1] || 'last_updated',
                 order: currentSortTh.hasClass('asc') ? 'ASC' : 'DESC',
                 bypass_cache: manual_bypass,
@@ -137,32 +135,47 @@ jQuery(document).ready(function($) {
                     const data = response.data;
                     
                     // 1. Update Table Body
-                    $('#wcat-active-carts-body').html(data.tableBody);
+                    $(tableBodySelector).html(data.tableBody);
 
                     // 2. Call the stable function to update all metric cards
                     updateMetricCards(data); 
                     
+                    // 3. Re-enable button with success state
+                    refreshButton.prop('disabled', false).text('Refresh Data');
+                    
                 } else {
                     console.error('AJAX Refresh failed (PHP response error):', response);
-                    refreshButton.prop('disabled', false).text('Refresh Failed');
+                    refreshButton.prop('disabled', false).text('Refresh Failed - Try Again');
+                    
+                    // Reset button text after 3 seconds
+                    setTimeout(function() {
+                        refreshButton.text('Refresh Data');
+                    }, 3000);
                 }
             },
-            error: function(xhr) {
-                console.error('AJAX Error (Network or Server):', xhr.responseText);
-                refreshButton.prop('disabled', false).text('Refresh Failed');
+            error: function(xhr, status, error) {
+                console.error('AJAX Error (Network or Server):', {
+                    status: status,
+                    error: error,
+                    response: xhr.responseText
+                });
+                
+                refreshButton.prop('disabled', false).text('Refresh Failed - Try Again');
+                
+                // Reset button text after 3 seconds
+                setTimeout(function() {
+                    refreshButton.text('Refresh Data');
+                }, 3000);
+            },
+            complete: function() {
+                setTimeout(function() {
+                    if (refreshButton.prop('disabled')) {
+                        refreshButton.prop('disabled', false).text('Refresh Data');
+                    }
+                }, 100);
             }
         });
     }
-
-    refreshButton.on('click', function() {
-        refreshDashboard(true); 
-    });
-
-    const pollingFunction = function () {
-        if (!refreshButton.prop('disabled')) {
-            refreshDashboard(false);
-        }
-    };
 
     // --- Automatic Page Refresh Handler ---
     function startAutoRefresh() {
@@ -172,7 +185,7 @@ jQuery(document).ready(function($) {
 
         const pollingFunction = function () {
             if (!refreshButton.prop('disabled')) {
-                refreshDashboard();
+                refreshDashboard(false);
             }
         };
 
@@ -186,7 +199,8 @@ jQuery(document).ready(function($) {
     }
 
     // Attach click handler for manual refresh
-    refreshButton.on('click', function() {
+    refreshButton.on('click', function(e) {
+        e.preventDefault();
         refreshDashboard(true);
     });
 
@@ -213,7 +227,7 @@ jQuery(document).ready(function($) {
             updateRefreshState(isChecked);
 
             $.ajax({
-                url: wcat_ajax.ajax_url,
+                url: ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'wcat_save_refresh_setting',
@@ -221,9 +235,7 @@ jQuery(document).ready(function($) {
                     enabled: isChecked ? 'yes' : 'no'
                 },
                 success: function(response) {
-                    if (response.success) {
-                        // Success saved!
-                    } else {
+                    if (!response.success) {
                         alert('Failed to save auto-refresh setting. Please check permissions.');
                         autoRefreshToggle.prop('checked', !isChecked);
                         updateRefreshState(!isChecked);
