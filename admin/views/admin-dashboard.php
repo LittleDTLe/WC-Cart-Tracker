@@ -407,7 +407,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
     <h2><?php echo esc_html__('Active Carts', 'wc-all-cart-tracker'); ?></h2>
 
-    <div class="tablenav top">
+    <div class="tablenav top dashnav">
        <div class="alignleft actions">
     <span class="displaying-num">
         <?php
