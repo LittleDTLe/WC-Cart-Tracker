@@ -52,7 +52,7 @@ class WC_Cart_Tracker_Export
     }
 
     /**
-     * Export active carts
+     * Export active carts with analytics metrics
      */
     private function export_active_carts($format)
     {
@@ -63,6 +63,25 @@ class WC_Cart_Tracker_Export
         $days = isset($_GET['days']) ? absint($_GET['days']) : 30;
         $date_from = isset($_GET['date_from']) ? sanitize_text_field($_GET['date_from']) : '';
         $date_to = isset($_GET['date_to']) ? sanitize_text_field($_GET['date_to']) : '';
+
+        $using_custom_range = false;
+        if (!empty($date_from) && !empty($date_to)) {
+            $using_custom_range = true;
+        }
+
+        // Get analytics data
+        if ($using_custom_range) {
+            $analytics = WC_Cart_Tracker_Analytics::get_analytics_data_by_date_range($date_from, $date_to);
+        } else {
+            $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
+        }
+
+        // Calculate distribution percentages
+        $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];
+        $registered_distribution = $total_carts_by_type > 0 ?
+            round(($analytics['registered_carts'] / $total_carts_by_type) * 100, 2) : 0;
+        $guest_distribution = $total_carts_by_type > 0 ?
+            round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
 
         $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
@@ -75,8 +94,104 @@ class WC_Cart_Tracker_Export
             $recent_date
         ));
 
-        // Prepare data
+        // Prepare data with analytics section first
         $data = array();
+
+        // === ANALYTICS OVERVIEW SECTION ===
+        $data[] = array('=== ANALYTICS OVERVIEW ===');
+
+        // Export Info
+        $period_text = $using_custom_range ?
+            sprintf('Custom Range: %s to %s', date('M d, Y', strtotime($date_from)), date('M d, Y', strtotime($date_to))) :
+            sprintf('Last %d Days', $days);
+        $data[] = array('Export Period:', $period_text);
+        $data[] = array('Export Date:', date('F j, Y - g:i A'));
+        $data[] = array(''); // Empty row
+
+        // Key Metrics
+        $data[] = array('=== KEY METRICS ===');
+        $data[] = array('Metric', 'Value', 'Details');
+        $data[] = array(
+            'Conversion Rate',
+            $analytics['conversion_rate'] . '%',
+            sprintf('%d / %d carts tracked', $analytics['converted_carts'], $analytics['total_carts'])
+        );
+        $data[] = array('Active Carts', $analytics['active_carts'], 'Currently in cart');
+        $data[] = array('Abandoned Carts', $analytics['abandoned_carts'], 'Inactive > 24hrs');
+        $data[] = array('Deleted Carts', $analytics['deleted_carts'], 'Cleared by user');
+        $data[] = array(
+            'Overall Revenue Potential',
+            $this->format_currency($analytics['overall_revenue_potential']),
+            'Total of active carts (last 7 days)'
+        );
+        $data[] = array(''); // Empty row
+
+        // Average Cart Values
+        $data[] = array('=== AVERAGE CART VALUES ===');
+        $data[] = array('Type', 'Value');
+        $data[] = array('Active Carts Average', $this->format_currency($analytics['avg_active_cart']));
+        $data[] = array('Converted Carts Average', $this->format_currency($analytics['avg_converted_cart']));
+        $data[] = array(''); // Empty row
+
+        // Revenue Potential Breakdown
+        $data[] = array('=== REVENUE POTENTIAL BREAKDOWN ===');
+        $data[] = array('Category', 'Value', 'Description');
+        $data[] = array(
+            'Overall Revenue Potential',
+            $this->format_currency($analytics['overall_revenue_potential']),
+            'Total potential from carts updated in last 7 days'
+        );
+        $data[] = array(
+            'Active Cart Potential',
+            $this->format_currency($analytics['active_cart_potential']),
+            'Carts updated within last 24 hours'
+        );
+        $data[] = array(
+            'Abandoned Cart Potential',
+            $this->format_currency($analytics['abandoned_cart_potential']),
+            'Carts between 24 hours and 7 days old'
+        );
+        if (isset($analytics['stale_carts']) && $analytics['stale_carts'] > 0) {
+            $data[] = array(
+                'Stale Carts (>7 days)',
+                $analytics['stale_carts'],
+                sprintf('Value: %s (excluded from revenue potential)', $this->format_currency($analytics['stale_cart_value']))
+            );
+        }
+        $data[] = array(''); // Empty row
+
+        // Customer Type Analysis
+        $data[] = array('=== BY CUSTOMER TYPE ===');
+        $data[] = array('Customer Type', 'Cart Count', 'Distribution', 'Conversion Rate', 'Converted Count');
+        $data[] = array(
+            'Registered Users',
+            $analytics['registered_carts'],
+            $registered_distribution . '%',
+            $analytics['registered_conversion_rate'] . '%',
+            $analytics['registered_converted']
+        );
+        $data[] = array(
+            'Guest Users',
+            $analytics['guest_carts'],
+            $guest_distribution . '%',
+            $analytics['guest_conversion_rate'] . '%',
+            $analytics['guest_converted']
+        );
+        $data[] = array(''); // Empty row
+
+        // Cart Summary
+        $data[] = array('=== CART SUMMARY ===');
+        $data[] = array('Summary Item', 'Count');
+        $data[] = array('Total Carts Tracked', $analytics['total_carts']);
+        $data[] = array('Converted to Order', $analytics['converted_carts']);
+        $data[] = array('Overall Conversion Rate', $analytics['conversion_rate'] . '%');
+        $data[] = array('Abandonment Rate', $analytics['abandonment_rate'] . '%');
+        $data[] = array(''); // Empty row
+        $data[] = array(''); // Empty row
+
+        // === ACTIVE CARTS DATA SECTION ===
+        $data[] = array('=== ACTIVE CARTS DATA ===');
+        $data[] = array(''); // Empty row
         $data[] = array(
             'ID',
             'Last Updated',
@@ -104,7 +219,7 @@ class WC_Cart_Tracker_Export
                         '%s (Qty: %d, Price: %s)',
                         $item['product_name'],
                         $item['quantity'],
-                        wc_price($item['line_total'])
+                        $this->format_currency($item['line_total'])
                     );
                 }
                 $items_text = implode('; ', $items_array);
@@ -118,15 +233,23 @@ class WC_Cart_Tracker_Export
                 $cart->user_id > 0 ? $cart->user_id : 'Guest',
                 substr($cart->session_id, 0, 20) . '...',
                 $cart->past_purchases,
-                $cart->cart_total,
+                $this->format_currency($cart->cart_total),
                 $items_count,
                 ucfirst($cart->cart_status),
                 $items_text
             );
         }
 
-        $filename = 'active-carts-' . date('Y-m-d-His');
+        $filename = 'active-carts-analytics-' . date('Y-m-d-His');
         $this->output_export($data, $filename, $format);
+    }
+
+    /**
+     * Format currency for export (removes HTML)
+     */
+    private function format_currency($amount)
+    {
+        return html_entity_decode(strip_tags(wc_price($amount)), ENT_QUOTES, 'UTF-8');
     }
 
     /**
@@ -171,6 +294,17 @@ class WC_Cart_Tracker_Export
 
         // Prepare data
         $data = array();
+
+        // Export Info
+        $data[] = array('=== CART HISTORY EXPORT ===');
+        $data[] = array('Export Period:', sprintf('Last %d Days', $days_filter));
+        $data[] = array('Status Filter:', ucfirst($status_filter));
+        $data[] = array('Export Date:', date('F j, Y - g:i A'));
+        $data[] = array('Total Records:', count($carts));
+        $data[] = array(''); // Empty row
+        $data[] = array(''); // Empty row
+
+        // Column headers
         $data[] = array(
             'ID',
             'Date',
@@ -205,7 +339,7 @@ class WC_Cart_Tracker_Export
                         '%s (Qty: %d, Price: %s)',
                         $item['product_name'],
                         $item['quantity'],
-                        wc_price($item['line_total'])
+                        $this->format_currency($item['line_total'])
                     );
                 }
                 $items_text = implode('; ', $items_array);
@@ -219,7 +353,7 @@ class WC_Cart_Tracker_Export
                 $cart->user_id > 0 ? $cart->user_id : 'Guest',
                 substr($cart->session_id, 0, 20) . '...',
                 $status_label,
-                $cart->cart_total,
+                $this->format_currency($cart->cart_total),
                 $items_count,
                 $cart->past_purchases,
                 $cart->is_active ? 'Yes' : 'No',
