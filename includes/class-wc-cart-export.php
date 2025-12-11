@@ -106,7 +106,7 @@ class WC_Cart_Tracker_Export
             sprintf('Last %d Days', $days);
         $data[] = array('Export Period:', $period_text);
         $data[] = array('Export Date:', date('F j, Y - g:i A'));
-        $data[] = array(''); // Empty row
+        $data[] = array('');
 
         // Key Metrics
         $data[] = array('=== KEY METRICS ===');
@@ -124,14 +124,14 @@ class WC_Cart_Tracker_Export
             $this->format_currency($analytics['overall_revenue_potential']),
             'Total of active carts (last 7 days)'
         );
-        $data[] = array(''); // Empty row
+        $data[] = array('');
 
         // Average Cart Values
         $data[] = array('=== AVERAGE CART VALUES ===');
         $data[] = array('Type', 'Value');
         $data[] = array('Active Carts Average', $this->format_currency($analytics['avg_active_cart']));
         $data[] = array('Converted Carts Average', $this->format_currency($analytics['avg_converted_cart']));
-        $data[] = array(''); // Empty row
+        $data[] = array('');
 
         // Revenue Potential Breakdown
         $data[] = array('=== REVENUE POTENTIAL BREAKDOWN ===');
@@ -158,7 +158,7 @@ class WC_Cart_Tracker_Export
                 sprintf('Value: %s (excluded from revenue potential)', $this->format_currency($analytics['stale_cart_value']))
             );
         }
-        $data[] = array(''); // Empty row
+        $data[] = array('');
 
         // Customer Type Analysis
         $data[] = array('=== BY CUSTOMER TYPE ===');
@@ -177,7 +177,7 @@ class WC_Cart_Tracker_Export
             $analytics['guest_conversion_rate'] . '%',
             $analytics['guest_converted']
         );
-        $data[] = array(''); // Empty row
+        $data[] = array('');
 
         // Cart Summary
         $data[] = array('=== CART SUMMARY ===');
@@ -186,12 +186,12 @@ class WC_Cart_Tracker_Export
         $data[] = array('Converted to Order', $analytics['converted_carts']);
         $data[] = array('Overall Conversion Rate', $analytics['conversion_rate'] . '%');
         $data[] = array('Abandonment Rate', $analytics['abandonment_rate'] . '%');
-        $data[] = array(''); // Empty row
-        $data[] = array(''); // Empty row
+        $data[] = array('');
+        $data[] = array('');
 
         // === ACTIVE CARTS DATA SECTION ===
         $data[] = array('=== ACTIVE CARTS DATA ===');
-        $data[] = array(''); // Empty row
+        $data[] = array('');
         $data[] = array(
             'ID',
             'Last Updated',
@@ -301,8 +301,8 @@ class WC_Cart_Tracker_Export
         $data[] = array('Status Filter:', ucfirst($status_filter));
         $data[] = array('Export Date:', date('F j, Y - g:i A'));
         $data[] = array('Total Records:', count($carts));
-        $data[] = array(''); // Empty row
-        $data[] = array(''); // Empty row
+        $data[] = array('');
+        $data[] = array('');
 
         // Column headers
         $data[] = array(

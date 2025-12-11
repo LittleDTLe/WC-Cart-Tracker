@@ -98,7 +98,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
         </div>
             <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
                 <button class="button button-secondary wcat-export-trigger" type="button">
-                    <?php esc_html_e('Export Active Carts', 'wc-all-cart-tracker'); ?> ▾
+                    <?php esc_html_e('Export Cart Data', 'wc-all-cart-tracker'); ?> ▾
                 </button>
                 <div class="wcat-export-menu"
                     style="display: none; position: absolute; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; margin-top: 5px;">
