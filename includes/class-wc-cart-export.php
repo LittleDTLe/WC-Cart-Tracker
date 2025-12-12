@@ -2,7 +2,7 @@
 /**
  * Export Handler for WC All Cart Tracker
  *
- * Handles CSV, Excel, and Google Sheets export functionality
+ * Handles CSV, Excel, and Google Sheets export functionality with full data sanitization
  *
  * @package WC_All_Cart_Tracker
  */
@@ -34,7 +34,6 @@ class WC_Cart_Tracker_Export
 
         $export_type = sanitize_text_field($_GET['wcat_export']);
         $format = isset($_GET['format']) ? sanitize_text_field($_GET['format']) : 'csv';
-        $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
 
         // Validate format
         if (!in_array($format, array('csv', 'excel', 'google_sheets'))) {
@@ -76,12 +75,15 @@ class WC_Cart_Tracker_Export
             $analytics = WC_Cart_Tracker_Analytics::get_analytics_data($days);
         }
 
+        // Sanitize analytics data
+        $clean_analytics = WC_Cart_Tracker_Data_Sanitizer::prepare_analytics_for_export($analytics);
+
         // Calculate distribution percentages
         $total_carts_by_type = $analytics['registered_carts'] + $analytics['guest_carts'];
         $registered_distribution = $total_carts_by_type > 0 ?
-            round(($analytics['registered_carts'] / $total_carts_by_type) * 100, 2) : 0;
+            number_format(($analytics['registered_carts'] / $total_carts_by_type) * 100, 2, '.', '') : '0.00';
         $guest_distribution = $total_carts_by_type > 0 ?
-            round(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2) : 0;
+            number_format(($analytics['guest_carts'] / $total_carts_by_type) * 100, 2, '.', '') : '0.00';
 
         $recent_date = date('Y-m-d H:i:s', strtotime('-24 hours'));
 
@@ -113,15 +115,15 @@ class WC_Cart_Tracker_Export
         $data[] = array('Metric', 'Value', 'Details');
         $data[] = array(
             'Conversion Rate',
-            $analytics['conversion_rate'] . '%',
+            $clean_analytics['conversion_rate'],
             sprintf('%d / %d carts tracked', $analytics['converted_carts'], $analytics['total_carts'])
         );
-        $data[] = array('Active Carts', $analytics['active_carts'], 'Currently in cart');
-        $data[] = array('Abandoned Carts', $analytics['abandoned_carts'], 'Inactive > 24hrs');
-        $data[] = array('Deleted Carts', $analytics['deleted_carts'], 'Cleared by user');
+        $data[] = array('Active Carts', $clean_analytics['active_carts'], 'Currently in cart');
+        $data[] = array('Abandoned Carts', $clean_analytics['abandoned_carts'], 'Inactive > 24hrs');
+        $data[] = array('Deleted Carts', $clean_analytics['deleted_carts'], 'Cleared by user');
         $data[] = array(
             'Overall Revenue Potential',
-            $this->format_currency($analytics['overall_revenue_potential']),
+            $clean_analytics['revenue_potential'],
             'Total of active carts (last 7 days)'
         );
         $data[] = array('');
@@ -129,8 +131,8 @@ class WC_Cart_Tracker_Export
         // Average Cart Values
         $data[] = array('=== AVERAGE CART VALUES ===');
         $data[] = array('Type', 'Value');
-        $data[] = array('Active Carts Average', $this->format_currency($analytics['avg_active_cart']));
-        $data[] = array('Converted Carts Average', $this->format_currency($analytics['avg_converted_cart']));
+        $data[] = array('Active Carts Average', $clean_analytics['avg_active_cart']);
+        $data[] = array('Converted Carts Average', $clean_analytics['avg_converted_cart']);
         $data[] = array('');
 
         // Revenue Potential Breakdown
@@ -138,43 +140,52 @@ class WC_Cart_Tracker_Export
         $data[] = array('Category', 'Value', 'Description');
         $data[] = array(
             'Overall Revenue Potential',
-            $this->format_currency($analytics['overall_revenue_potential']),
+            $clean_analytics['revenue_potential'],
             'Total potential from carts updated in last 7 days'
         );
-        $data[] = array(
-            'Active Cart Potential',
-            $this->format_currency($analytics['active_cart_potential']),
-            'Carts updated within last 24 hours'
-        );
-        $data[] = array(
-            'Abandoned Cart Potential',
-            $this->format_currency($analytics['abandoned_cart_potential']),
-            'Carts between 24 hours and 7 days old'
-        );
+
+        // Add active/abandoned potential if available
+        if (isset($analytics['active_cart_potential'])) {
+            $data[] = array(
+                'Active Cart Potential',
+                WC_Cart_Tracker_Data_Sanitizer::clean_price($analytics['active_cart_potential']),
+                'Carts updated within last 24 hours'
+            );
+        }
+        if (isset($analytics['abandoned_cart_potential'])) {
+            $data[] = array(
+                'Abandoned Cart Potential',
+                WC_Cart_Tracker_Data_Sanitizer::clean_price($analytics['abandoned_cart_potential']),
+                'Carts between 24 hours and 7 days old'
+            );
+        }
         if (isset($analytics['stale_carts']) && $analytics['stale_carts'] > 0) {
             $data[] = array(
                 'Stale Carts (>7 days)',
                 $analytics['stale_carts'],
-                sprintf('Value: %s (excluded from revenue potential)', $this->format_currency($analytics['stale_cart_value']))
+                sprintf(
+                    'Value: %s (excluded from revenue potential)',
+                    WC_Cart_Tracker_Data_Sanitizer::clean_price($analytics['stale_cart_value'])
+                )
             );
         }
         $data[] = array('');
 
         // Customer Type Analysis
         $data[] = array('=== BY CUSTOMER TYPE ===');
-        $data[] = array('Customer Type', 'Cart Count', 'Distribution', 'Conversion Rate', 'Converted Count');
+        $data[] = array('Customer Type', 'Cart Count', 'Distribution %', 'Conversion Rate', 'Converted Count');
         $data[] = array(
             'Registered Users',
-            $analytics['registered_carts'],
-            $registered_distribution . '%',
-            $analytics['registered_conversion_rate'] . '%',
+            $clean_analytics['registered_carts'],
+            $registered_distribution,
+            $clean_analytics['registered_conversion_rate'],
             $analytics['registered_converted']
         );
         $data[] = array(
             'Guest Users',
-            $analytics['guest_carts'],
-            $guest_distribution . '%',
-            $analytics['guest_conversion_rate'] . '%',
+            $clean_analytics['guest_carts'],
+            $guest_distribution,
+            $clean_analytics['guest_conversion_rate'],
             $analytics['guest_converted']
         );
         $data[] = array('');
@@ -182,10 +193,10 @@ class WC_Cart_Tracker_Export
         // Cart Summary
         $data[] = array('=== CART SUMMARY ===');
         $data[] = array('Summary Item', 'Count');
-        $data[] = array('Total Carts Tracked', $analytics['total_carts']);
-        $data[] = array('Converted to Order', $analytics['converted_carts']);
-        $data[] = array('Overall Conversion Rate', $analytics['conversion_rate'] . '%');
-        $data[] = array('Abandonment Rate', $analytics['abandonment_rate'] . '%');
+        $data[] = array('Total Carts Tracked', $clean_analytics['total_carts']);
+        $data[] = array('Converted to Order', $clean_analytics['converted_carts']);
+        $data[] = array('Overall Conversion Rate', $clean_analytics['conversion_rate']);
+        $data[] = array('Abandonment Rate', $clean_analytics['abandonment_rate']);
         $data[] = array('');
         $data[] = array('');
 
@@ -207,49 +218,28 @@ class WC_Cart_Tracker_Export
         );
 
         foreach ($carts as $cart) {
-            $cart_items = json_decode($cart->cart_content, true);
-            $items_count = is_array($cart_items) ? count($cart_items) : 0;
-
-            // Format cart items for export
-            $items_text = '';
-            if (!empty($cart_items) && is_array($cart_items)) {
-                $items_array = array();
-                foreach ($cart_items as $item) {
-                    $items_array[] = sprintf(
-                        '%s (Qty: %d, Price: %s)',
-                        $item['product_name'],
-                        $item['quantity'],
-                        $this->format_currency($item['line_total'])
-                    );
-                }
-                $items_text = implode('; ', $items_array);
-            }
+            // Use sanitizer to prepare cart data
+            $clean_cart = WC_Cart_Tracker_Data_Sanitizer::prepare_cart_for_export($cart);
 
             $data[] = array(
-                $cart->id,
-                $cart->last_updated,
-                $cart->customer_name ?: 'Guest',
-                $cart->customer_email ?: 'N/A',
-                $cart->user_id > 0 ? $cart->user_id : 'Guest',
-                substr($cart->session_id, 0, 20) . '...',
-                $cart->past_purchases,
-                $this->format_currency($cart->cart_total),
-                $items_count,
-                ucfirst($cart->cart_status),
-                $items_text
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['id']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['date']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv(
+                    !empty($cart->customer_name) ? $cart->customer_name : 'Guest'
+                ),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['email']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['user_id']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv(substr($cart->session_id, 0, 20) . '...'),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['past_purchases']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_total']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['item_count']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv('Active'),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_items'])
             );
         }
 
         $filename = 'active-carts-analytics-' . date('Y-m-d-His');
         $this->output_export($data, $filename, $format);
-    }
-
-    /**
-     * Format currency for export (removes HTML)
-     */
-    private function format_currency($amount)
-    {
-        return html_entity_decode(strip_tags(wc_price($amount)), ENT_QUOTES, 'UTF-8');
     }
 
     /**
@@ -321,43 +311,31 @@ class WC_Cart_Tracker_Export
         );
 
         foreach ($carts as $cart) {
-            $cart_items = json_decode($cart->cart_content, true);
-            $items_count = is_array($cart_items) ? count($cart_items) : 0;
+            // Use sanitizer to prepare cart data
+            $clean_cart = WC_Cart_Tracker_Data_Sanitizer::prepare_cart_for_export($cart);
 
-            // Determine status label
-            $status_label = ucfirst($cart->cart_status);
-            if ($cart->cart_status === 'active' && strtotime($cart->last_updated) < strtotime('-24 hours')) {
-                $status_label = 'Abandoned';
-            }
-
-            // Format cart items for export
-            $items_text = '';
-            if (!empty($cart_items) && is_array($cart_items)) {
-                $items_array = array();
-                foreach ($cart_items as $item) {
-                    $items_array[] = sprintf(
-                        '%s (Qty: %d, Price: %s)',
-                        $item['product_name'],
-                        $item['quantity'],
-                        $this->format_currency($item['line_total'])
-                    );
-                }
-                $items_text = implode('; ', $items_array);
-            }
+            // Get status (sanitizer already does this)
+            $status_label = WC_Cart_Tracker_Data_Sanitizer::clean_status(
+                $cart->cart_status,
+                $cart->is_active,
+                $cart->last_updated
+            );
 
             $data[] = array(
-                $cart->id,
-                $cart->last_updated,
-                $cart->customer_name ?: 'Guest',
-                $cart->customer_email ?: 'N/A',
-                $cart->user_id > 0 ? $cart->user_id : 'Guest',
-                substr($cart->session_id, 0, 20) . '...',
-                $status_label,
-                $this->format_currency($cart->cart_total),
-                $items_count,
-                $cart->past_purchases,
-                $cart->is_active ? 'Yes' : 'No',
-                $items_text
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['id']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['date']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv(
+                    !empty($cart->customer_name) ? $cart->customer_name : 'Guest'
+                ),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['email']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['user_id']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv(substr($cart->session_id, 0, 20) . '...'),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($status_label),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_total']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['item_count']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['past_purchases']),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($cart->is_active ? 'Yes' : 'No'),
+                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_items'])
             );
         }
 
@@ -385,7 +363,7 @@ class WC_Cart_Tracker_Export
     }
 
     /**
-     * Output CSV format
+     * Output CSV format with UTF-8 BOM for Excel compatibility
      */
     private function output_csv($data, $filename)
     {
@@ -408,8 +386,8 @@ class WC_Cart_Tracker_Export
     }
 
     /**
-     * Output Excel format (using CSV with proper headers)
-     * For true Excel format, consider using PHPSpreadsheet library
+     * Output Excel XML format for better compatibility
+     * All data is already sanitized by the sanitizer class
      */
     private function output_excel($data, $filename)
     {
@@ -429,7 +407,9 @@ class WC_Cart_Tracker_Export
         foreach ($data as $row) {
             echo '<Row>' . "\n";
             foreach ($row as $cell) {
-                $cell = htmlspecialchars($cell, ENT_XML1);
+                // Strip any remaining HTML and encode for XML
+                $cell = WC_Cart_Tracker_Data_Sanitizer::strip_html($cell);
+                $cell = htmlspecialchars($cell, ENT_XML1, 'UTF-8');
                 echo '<Cell><Data ss:Type="String">' . $cell . '</Data></Cell>' . "\n";
             }
             echo '</Row>' . "\n";
@@ -450,6 +430,75 @@ class WC_Cart_Tracker_Export
         // Just add instructions in the filename
         $filename .= '-google-sheets';
         $this->output_csv($data, $filename);
+    }
+
+    /**
+     * Render export buttons on admin pages
+     */
+    public static function render_export_buttons($page_type, $current_filters = array())
+    {
+        $nonce = wp_create_nonce('wcat_export_nonce');
+
+        ?>
+        <div class="wcat-export-section"
+            style="margin: 15px 0; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+            <h3 style="margin-top: 0; font-size: 14px; font-weight: 600;">
+                <?php esc_html_e('Export Options', 'wc-all-cart-tracker'); ?>
+            </h3>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <?php if ($page_type === 'dashboard'): ?>
+                    <!-- Active Carts Export -->
+                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
+                        'wcat_export' => 'active_carts',
+                        'format' => 'csv',
+                        '_wpnonce' => $nonce
+                    )), admin_url('admin.php'))); ?>" class="button button-primary">
+                        <span class="dashicons dashicons-download" style="vertical-align: middle; margin-top: 3px;"></span>
+                        <?php esc_html_e('Export Active Carts (CSV)', 'wc-all-cart-tracker'); ?>
+                    </a>
+
+                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
+                        'wcat_export' => 'active_carts',
+                        'format' => 'excel',
+                        '_wpnonce' => $nonce
+                    )), admin_url('admin.php'))); ?>" class="button button-secondary">
+                        <span class="dashicons dashicons-media-spreadsheet" style="vertical-align: middle; margin-top: 3px;"></span>
+                        <?php esc_html_e('Excel Format', 'wc-all-cart-tracker'); ?>
+                    </a>
+
+                <?php elseif ($page_type === 'history'): ?>
+                    <!-- Cart History Export -->
+                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
+                        'wcat_export' => 'cart_history',
+                        'format' => 'csv',
+                        '_wpnonce' => $nonce
+                    )), admin_url('admin.php'))); ?>" class="button button-primary">
+                        <span class="dashicons dashicons-download" style="vertical-align: middle; margin-top: 3px;"></span>
+                        <?php esc_html_e('Export History (CSV)', 'wc-all-cart-tracker'); ?>
+                    </a>
+
+                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
+                        'wcat_export' => 'cart_history',
+                        'format' => 'excel',
+                        '_wpnonce' => $nonce
+                    )), admin_url('admin.php'))); ?>" class="button button-secondary">
+                        <span class="dashicons dashicons-media-spreadsheet" style="vertical-align: middle; margin-top: 3px;"></span>
+                        <?php esc_html_e('Excel Format', 'wc-all-cart-tracker'); ?>
+                    </a>
+                <?php endif; ?>
+
+                <span class="description" style="margin-left: 10px; color: #666;">
+                    <span class="dashicons dashicons-yes-alt" style="color: #46b450; vertical-align: middle;"></span>
+                    <?php esc_html_e('All exports are sanitized and Excel-ready', 'wc-all-cart-tracker'); ?>
+                </span>
+            </div>
+
+            <p class="description" style="margin: 10px 0 0 0; font-size: 12px;">
+                <?php esc_html_e('Exports include current filters and date ranges. All HTML is removed and data is formatted for spreadsheet compatibility.', 'wc-all-cart-tracker'); ?>
+            </p>
+        </div>
+        <?php
     }
 }
 

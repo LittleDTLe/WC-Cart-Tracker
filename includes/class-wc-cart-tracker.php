@@ -57,6 +57,9 @@ class WC_Cart_Tracker
         // Load exporter
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export.php';
 
+        // Load Sanitation Class
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-data-sanitizer.php';
+
         // Load admin if in admin area
         if (is_admin()) {
             require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-admin.php';
