@@ -399,8 +399,6 @@ class WC_Cart_Tracker_Export
      */
     public static function render_export_buttons($page_type, $current_filters = array())
     {
-        $nonce = wp_create_nonce('wcat_export_nonce');
-
         ?>
         <div class="wcat-export-section"
             style="margin: 15px 0; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
@@ -410,54 +408,42 @@ class WC_Cart_Tracker_Export
 
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                 <?php if ($page_type === 'dashboard'): ?>
-                    <!-- Active Carts Export -->
-                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
-                        'wcat_export' => 'active_carts',
-                        'format' => 'csv',
-                        '_wpnonce' => $nonce
-                    )), admin_url('admin.php'))); ?>" class="button button-primary">
+                    <!-- Active Carts Export Buttons -->
+                    <button type="button" class="button button-primary" data-wcat-export="active_carts" data-format="csv"
+                        data-filters='<?php echo esc_attr(wp_json_encode($current_filters)); ?>'>
                         <span class="dashicons dashicons-download" style="vertical-align: middle; margin-top: 3px;"></span>
                         <?php esc_html_e('Export Active Carts (CSV)', 'wc-all-cart-tracker'); ?>
-                    </a>
+                    </button>
 
-                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
-                        'wcat_export' => 'active_carts',
-                        'format' => 'excel',
-                        '_wpnonce' => $nonce
-                    )), admin_url('admin.php'))); ?>" class="button button-secondary">
+                    <button type="button" class="button button-secondary" data-wcat-export="active_carts" data-format="excel"
+                        data-filters='<?php echo esc_attr(wp_json_encode($current_filters)); ?>'>
                         <span class="dashicons dashicons-media-spreadsheet" style="vertical-align: middle; margin-top: 3px;"></span>
                         <?php esc_html_e('Excel Format', 'wc-all-cart-tracker'); ?>
-                    </a>
+                    </button>
 
                 <?php elseif ($page_type === 'history'): ?>
-                    <!-- Cart History Export -->
-                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
-                        'wcat_export' => 'cart_history',
-                        'format' => 'csv',
-                        '_wpnonce' => $nonce
-                    )), admin_url('admin.php'))); ?>" class="button button-primary">
+                    <!-- Cart History Export Buttons -->
+                    <button type="button" class="button button-primary" data-wcat-export="cart_history" data-format="csv"
+                        data-filters='<?php echo esc_attr(wp_json_encode($current_filters)); ?>'>
                         <span class="dashicons dashicons-download" style="vertical-align: middle; margin-top: 3px;"></span>
                         <?php esc_html_e('Export History (CSV)', 'wc-all-cart-tracker'); ?>
-                    </a>
+                    </button>
 
-                    <a href="<?php echo esc_url(add_query_arg(array_merge($current_filters, array(
-                        'wcat_export' => 'cart_history',
-                        'format' => 'excel',
-                        '_wpnonce' => $nonce
-                    )), admin_url('admin.php'))); ?>" class="button button-secondary">
+                    <button type="button" class="button button-secondary" data-wcat-export="cart_history" data-format="excel"
+                        data-filters='<?php echo esc_attr(wp_json_encode($current_filters)); ?>'>
                         <span class="dashicons dashicons-media-spreadsheet" style="vertical-align: middle; margin-top: 3px;"></span>
                         <?php esc_html_e('Excel Format', 'wc-all-cart-tracker'); ?>
-                    </a>
+                    </button>
                 <?php endif; ?>
 
                 <span class="description" style="margin-left: 10px; color: #666;">
                     <span class="dashicons dashicons-yes-alt" style="color: #46b450; vertical-align: middle;"></span>
-                    <?php esc_html_e('All exports are sanitized and Excel-ready', 'wc-all-cart-tracker'); ?>
+                    <?php esc_html_e('Select columns in the next step', 'wc-all-cart-tracker'); ?>
                 </span>
             </div>
 
             <p class="description" style="margin: 10px 0 0 0; font-size: 12px;">
-                <?php esc_html_e('Exports include current filters and date ranges. All HTML is removed and data is formatted for spreadsheet compatibility.', 'wc-all-cart-tracker'); ?>
+                <?php esc_html_e('Click export to choose which columns to include. All data is sanitized and Excel-ready.', 'wc-all-cart-tracker'); ?>
             </p>
         </div>
         <?php

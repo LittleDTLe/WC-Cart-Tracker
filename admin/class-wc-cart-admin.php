@@ -49,12 +49,14 @@ class WC_Cart_Tracker_Admin
 
     public function enqueue_admin_assets($hook)
     {
+        // Only on cart tracker pages
         if ('woocommerce_page_wc-all-cart-tracker' !== $hook && 'woocommerce_page_wc-cart-history' !== $hook) {
             return;
         }
 
         wp_enqueue_style('wp-admin');
 
+        // Enqueue main admin styles
         wp_enqueue_style(
             'wc-cart-tracker-admin',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-styles.css',
@@ -62,6 +64,7 @@ class WC_Cart_Tracker_Admin
             WC_CART_TRACKER_VERSION
         );
 
+        // Enqueue export modal styles
         wp_enqueue_style(
             'wc-cart-tracker-export-modal',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/export-modal.css',
@@ -69,7 +72,7 @@ class WC_Cart_Tracker_Admin
             WC_CART_TRACKER_VERSION
         );
 
-
+        // Enqueue main admin scripts
         wp_enqueue_script(
             'wc-cart-tracker-admin',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-scripts.js',
@@ -78,15 +81,16 @@ class WC_Cart_Tracker_Admin
             true
         );
 
+        // Enqueue export modal scripts
         wp_enqueue_script(
             'wc-cart-tracker-export-modal',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/export-modal.js',
-            array('jquery'),
+            array('jquery', 'wc-cart-tracker-admin'), // Depends on main admin script
             WC_CART_TRACKER_VERSION,
             true
         );
 
-        // Localize script with AJAX data
+        // Localize script for main admin functionality
         wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wcat_ajax_nonce'),
@@ -94,9 +98,11 @@ class WC_Cart_Tracker_Admin
             'auto_refresh' => array(
                 'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
                 'interval' => 306000,
-            )
+            ),
+            'dashboard_url' => admin_url('admin.php?page=wc-all-cart-tracker')
         ));
 
+        // Localize script for export modal
         wp_localize_script('wc-cart-tracker-export-modal', 'wcatExport', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'adminUrl' => admin_url('admin.php'),

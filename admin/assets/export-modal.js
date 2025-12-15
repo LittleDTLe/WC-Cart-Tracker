@@ -1,5 +1,6 @@
 /**
- * Export Column Selection Modal Controller
+ * Export Column Selection Modal Controller with Debugging
+ * 
  */
 
 (function($) {
@@ -15,34 +16,47 @@
         templates: {},
 
         init() {
+            console.log('WC Cart Tracker: Export Modal initializing...');
+            
             this.modal = $('#wcat-export-modal');
             
             if (this.modal.length === 0) {
-                console.warn('WC Cart Tracker: Export modal not found in DOM');
+                console.error('WC Cart Tracker: Export modal not found in DOM');
                 return;
             }
 
+            console.log('WC Cart Tracker: Modal found, binding events...');
             this.bindEvents();
             this.loadTemplates();
         },
 
         bindEvents() {
-            // Open modal
+            // Open modal - CRITICAL: This is what triggers when you click the export button
             $(document).on('click', '[data-wcat-export]', (e) => {
                 e.preventDefault();
+                console.log('WC Cart Tracker: Export button clicked!');
+                
                 const $btn = $(e.currentTarget);
                 this.exportType = $btn.data('wcat-export');
                 this.format = $btn.data('format') || 'csv';
+                
+                console.log('Export Type:', this.exportType);
+                console.log('Format:', this.format);
                 
                 // Parse filters from data attribute
                 const filtersAttr = $btn.data('filters');
                 this.filters = typeof filtersAttr === 'string' ? JSON.parse(filtersAttr) : (filtersAttr || {});
                 
+                console.log('Filters:', this.filters);
+                
                 this.open();
             });
 
             // Close modal
-            $('.wcat-export-modal-close, [data-action="cancel"]').on('click', () => this.close());
+            $('.wcat-export-modal-close, [data-action="cancel"]').on('click', () => {
+                console.log('Closing modal...');
+                this.close();
+            });
             
             // Close on overlay click
             this.modal.on('click', (e) => {
@@ -86,15 +100,20 @@
                     this.close();
                 }
             });
+
+            console.log('WC Cart Tracker: Events bound successfully');
         },
 
         open() {
+            console.log('WC Cart Tracker: Opening modal...');
             this.resetToDefault();
             this.modal.addClass('active');
             $('body').css('overflow', 'hidden');
+            console.log('WC Cart Tracker: Modal opened');
         },
 
         close() {
+            console.log('WC Cart Tracker: Closing modal...');
             this.modal.removeClass('active');
             $('body').css('overflow', '');
             this.hideSaveTemplateForm();
@@ -106,6 +125,8 @@
                 return;
             }
 
+            console.log('WC Cart Tracker: Loading templates via AJAX...');
+
             $.ajax({
                 url: wcatExport.ajaxUrl,
                 type: 'POST',
@@ -114,6 +135,7 @@
                     nonce: wcatExport.nonce
                 },
                 success: (response) => {
+                    console.log('WC Cart Tracker: Templates loaded', response);
                     if (response.success) {
                         this.templates = response.data.templates || {};
                         this.availableColumns = response.data.columns || {};
@@ -354,6 +376,8 @@
                 return;
             }
 
+            console.log('Exporting with columns:', columns);
+
             // Build export URL with selected columns
             const params = {
                 wcat_export: this.exportType,
@@ -365,6 +389,8 @@
 
             const url = wcatExport.adminUrl + '?' + $.param(params);
             
+            console.log('Export URL:', url);
+            
             // Trigger download
             window.location.href = url;
             
@@ -375,6 +401,7 @@
 
     // Initialize when DOM is ready
     $(document).ready(() => {
+        console.log('WC Cart Tracker: Document ready, initializing export modal...');
         ExportModal.init();
     });
 
