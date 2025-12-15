@@ -35,6 +35,10 @@ class WC_Cart_Tracker_Export
         $export_type = sanitize_text_field($_GET['wcat_export']);
         $format = isset($_GET['format']) ? sanitize_text_field($_GET['format']) : 'csv';
 
+        $columns = isset($_GET['columns']) ?
+            explode(',', sanitize_text_field($_GET['columns'])) :
+            WC_Cart_Tracker_Export_Templates::get_default_columns();
+
         // Validate format
         if (!in_array($format, array('csv', 'excel', 'google_sheets'))) {
             $format = 'csv';
@@ -42,10 +46,10 @@ class WC_Cart_Tracker_Export
 
         switch ($export_type) {
             case 'active_carts':
-                $this->export_active_carts($format);
+                $this->export_active_carts($format, $columns);
                 break;
             case 'cart_history':
-                $this->export_cart_history($format);
+                $this->export_cart_history($format, $columns);
                 break;
         }
     }
@@ -53,7 +57,7 @@ class WC_Cart_Tracker_Export
     /**
      * Export active carts with analytics metrics
      */
-    private function export_active_carts($format)
+    private function export_active_carts($format, $columns = null)
     {
         global $wpdb;
         $table_name = WC_Cart_Tracker_Database::get_table_name();
@@ -95,6 +99,10 @@ class WC_Cart_Tracker_Export
             1,
             $recent_date
         ));
+
+        if ($columns === null) {
+            $columns = WC_Cart_Tracker_Export_Templates::get_default_columns();
+        }
 
         // Prepare data with analytics section first
         $data = array();
@@ -203,39 +211,19 @@ class WC_Cart_Tracker_Export
         // === ACTIVE CARTS DATA SECTION ===
         $data[] = array('=== ACTIVE CARTS DATA ===');
         $data[] = array('');
-        $data[] = array(
-            'ID',
-            'Last Updated',
-            'Customer Name',
-            'Customer Email',
-            'User ID',
-            'Session ID',
-            'Past Purchases',
-            'Cart Total',
-            'Items Count',
-            'Cart Status',
-            'Cart Items'
-        );
+        $data[] = WC_Cart_Tracker_Export_Templates::get_column_headers($columns);
+
 
         foreach ($carts as $cart) {
-            // Use sanitizer to prepare cart data
-            $clean_cart = WC_Cart_Tracker_Data_Sanitizer::prepare_cart_for_export($cart);
+            $row = array();
 
-            $data[] = array(
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['id']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['date']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv(
-                    !empty($cart->customer_name) ? $cart->customer_name : 'Guest'
-                ),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['email']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['user_id']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv(substr($cart->session_id, 0, 20) . '...'),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['past_purchases']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_total']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['item_count']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv('Active'),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_items'])
-            );
+            // ✅ Extract only selected columns
+            foreach ($columns as $column_key) {
+                $value = WC_Cart_Tracker_Export_Templates::extract_column_data($cart, $column_key);
+                $row[] = WC_Cart_Tracker_Data_Sanitizer::escape_csv($value);
+            }
+
+            $data[] = $row;
         }
 
         $filename = 'active-carts-analytics-' . date('Y-m-d-His');
@@ -245,7 +233,7 @@ class WC_Cart_Tracker_Export
     /**
      * Export cart history
      */
-    private function export_cart_history($format)
+    private function export_cart_history($format, $columns = null)
     {
         global $wpdb;
         $table_name = WC_Cart_Tracker_Database::get_table_name();
@@ -282,6 +270,10 @@ class WC_Cart_Tracker_Export
         $carts_query = "SELECT * FROM {$table_name} WHERE {$where_sql} ORDER BY last_updated DESC";
         $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
 
+        if ($columns === null) {
+            $columns = WC_Cart_Tracker_Export_Templates::get_default_columns();
+        }
+
         // Prepare data
         $data = array();
 
@@ -295,48 +287,18 @@ class WC_Cart_Tracker_Export
         $data[] = array('');
 
         // Column headers
-        $data[] = array(
-            'ID',
-            'Date',
-            'Customer Name',
-            'Customer Email',
-            'User ID',
-            'Session ID',
-            'Status',
-            'Cart Total',
-            'Items Count',
-            'Past Purchases',
-            'Is Active',
-            'Cart Items'
-        );
+        $data[] = WC_Cart_Tracker_Export_Templates::get_column_headers($columns);
 
         foreach ($carts as $cart) {
-            // Use sanitizer to prepare cart data
-            $clean_cart = WC_Cart_Tracker_Data_Sanitizer::prepare_cart_for_export($cart);
+            $row = array();
 
-            // Get status (sanitizer already does this)
-            $status_label = WC_Cart_Tracker_Data_Sanitizer::clean_status(
-                $cart->cart_status,
-                $cart->is_active,
-                $cart->last_updated
-            );
+            // ✅ Extract only selected columns
+            foreach ($columns as $column_key) {
+                $value = WC_Cart_Tracker_Export_Templates::extract_column_data($cart, $column_key);
+                $row[] = WC_Cart_Tracker_Data_Sanitizer::escape_csv($value);
+            }
 
-            $data[] = array(
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['id']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['date']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv(
-                    !empty($cart->customer_name) ? $cart->customer_name : 'Guest'
-                ),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['email']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['user_id']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv(substr($cart->session_id, 0, 20) . '...'),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($status_label),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_total']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['item_count']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['past_purchases']),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($cart->is_active ? 'Yes' : 'No'),
-                WC_Cart_Tracker_Data_Sanitizer::escape_csv($clean_cart['cart_items'])
-            );
+            $data[] = $row;
         }
 
         $filename = 'cart-history-' . date('Y-m-d-His');

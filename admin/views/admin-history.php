@@ -94,6 +94,14 @@ $query_params[] = $per_page;
 $query_params[] = $offset;
 $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
 // --- End Data Retrieval ---
+
+// Render export buttons for history page
+WC_Cart_Tracker_Export::render_export_buttons('history', array(
+    'page' => 'wc-cart-history',
+    'days' => $days_filter,
+    'status' => $status_filter
+));
+
 ?>
 <div class="wrap">
     <h1><?php echo esc_html__('Cart History', 'wc-all-cart-tracker'); ?></h1>
@@ -166,7 +174,7 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
             </div>
 
             <!-- Export Dropdown Button -->
-            <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
+            <!-- <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
                 <button class="button button-primary wcat-export-trigger" type="button">
                     <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
                     <?php esc_html_e('Export History', 'wc-all-cart-tracker'); ?> ▾
@@ -207,7 +215,7 @@ $carts = $wpdb->get_results($wpdb->prepare($carts_query, $query_params));
                             style="color: #646970;"><?php esc_html_e('Import to Google Sheets', 'wc-all-cart-tracker'); ?></small>
                     </a>
                 </div>
-            </div>
+            </div> -->
         </div>
 
         <form id="filter-form" method="get" style="display: none;">

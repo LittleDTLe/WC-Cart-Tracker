@@ -85,6 +85,19 @@ $carts = $wpdb->get_results($wpdb->prepare(
     $offset
 ));
 // --- End Data Retrieval ---
+$export_filters = array(
+    'page' => 'wc-all-cart-tracker',
+    'days' => $days,
+);
+
+if ($using_custom_range) {
+    $export_filters['date_from'] = $date_from;
+    $export_filters['date_to'] = $date_to;
+}
+
+// Render export buttons that trigger the modal
+WC_Cart_Tracker_Export::render_export_buttons('dashboard', $export_filters);
+
 
 ?>
 <div class="wrap">
@@ -96,7 +109,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
             <button id="wcat-manual-refresh"
             class="button button-secondary"><?php esc_html_e('Refresh Data', 'wc-all-cart-tracker'); ?></button>
         </div>
-            <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
+            <!-- <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
                 <button class="button button-secondary wcat-export-trigger" type="button">
                     <?php esc_html_e('Export Cart Data', 'wc-all-cart-tracker'); ?> ▾
                 </button>
@@ -121,7 +134,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
                         <?php esc_html_e('Export for Google Sheets', 'wc-all-cart-tracker'); ?>
                     </a>
                 </div>
-            </div>
+            </div> -->
         </div>
     </div>
 
@@ -285,7 +298,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
-                        style="color: #646970;"><?php echo esc_html__('Active Carts:', 'wc-all-cart-tracker'); ?></span>
+                        style="color: #646970;"><?php echo esc_html__('Weekly Carts:', 'wc-all-cart-tracker'); ?></span>
                     <strong class="wcat-value" data-key="avg_active_cart_html">
                         <?php echo wc_price($analytics['avg_active_cart']); ?>
                     </strong>

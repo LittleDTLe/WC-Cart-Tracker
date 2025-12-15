@@ -56,6 +56,8 @@ class WC_Cart_Tracker
 
         // Load exporter
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export.php';
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export-templates.php';
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export-ajax.php';
 
         // Load Sanitation Class
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-data-sanitizer.php';

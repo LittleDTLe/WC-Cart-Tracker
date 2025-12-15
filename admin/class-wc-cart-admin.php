@@ -18,6 +18,7 @@ class WC_Cart_Tracker_Admin
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_action('wp_ajax_wcat_refresh_dashboard', array($this, 'ajax_refresh_dashboard'));
         add_action('wp_ajax_wcat_save_refresh_setting', array($this, 'ajax_save_refresh_setting'));
+        add_action('admin_footer', array($this, 'render_export_modal'));
 
         if (file_exists(WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-optimization-admin.php')) {
             require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-optimization-admin.php';
@@ -61,9 +62,25 @@ class WC_Cart_Tracker_Admin
             WC_CART_TRACKER_VERSION
         );
 
+        wp_enqueue_style(
+            'wc-cart-tracker-export-modal',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/export-modal.css',
+            array(),
+            WC_CART_TRACKER_VERSION
+        );
+
+
         wp_enqueue_script(
             'wc-cart-tracker-admin',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-scripts.js',
+            array('jquery'),
+            WC_CART_TRACKER_VERSION,
+            true
+        );
+
+        wp_enqueue_script(
+            'wc-cart-tracker-export-modal',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/export-modal.js',
             array('jquery'),
             WC_CART_TRACKER_VERSION,
             true
@@ -79,6 +96,13 @@ class WC_Cart_Tracker_Admin
                 'interval' => 306000,
             )
         ));
+
+        wp_localize_script('wc-cart-tracker-export-modal', 'wcatExport', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'adminUrl' => admin_url('admin.php'),
+            'nonce' => wp_create_nonce('wcat_export_ajax'),
+            'exportNonce' => wp_create_nonce('wcat_export_nonce'),
+        ));
     }
 
     public function render_dashboard_page()
@@ -89,6 +113,16 @@ class WC_Cart_Tracker_Admin
     public function render_history_page()
     {
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/admin-history.php';
+    }
+
+    public function render_export_modal()
+    {
+        $screen = get_current_screen();
+        if (!$screen || !in_array($screen->id, array('woocommerce_page_wc-all-cart-tracker', 'woocommerce_page_wc-cart-history'))) {
+            return;
+        }
+
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/export-modal.php';
     }
 
     // --- AJAX Handler ---
