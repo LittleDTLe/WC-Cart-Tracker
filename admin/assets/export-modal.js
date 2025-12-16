@@ -27,7 +27,6 @@
         },
 
         bindEvents() {
-            // Open modal - CRITICAL: This is what triggers when you click the export button
             $(document).on('click', '[data-wcat-export]', (e) => {
                 e.preventDefault();
                 

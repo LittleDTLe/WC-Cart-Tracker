@@ -1,0 +1,35 @@
+/* Scheduled Exports Styles */
+.wcat-scheduled-exports-container {
+	max-width: 1200px;
+}
+
+.wcat-schedule-form-card,
+.wcat-schedules-list-card,
+.wcat-info-box {
+	margin-bottom: 20px;
+}
+
+.wcat-columns-grid {
+	background: #f9f9f9;
+	border: 1px solid #ddd;
+	padding: 15px;
+	border-radius: 4px;
+}
+
+.wcat-status-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.wcat-status-badge.enabled {
+	background: #00a32a;
+	color: #fff;
+}
+
+.wcat-status-badge.disabled {
+	background: #dba617;
+	color: #fff;
+}
