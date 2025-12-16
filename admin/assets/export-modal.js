@@ -1,6 +1,5 @@
 /**
  * Export Column Selection Modal Controller with Debugging
- * 
  */
 
 (function($) {
@@ -16,7 +15,6 @@
         templates: {},
 
         init() {
-            console.log('WC Cart Tracker: Export Modal initializing...');
             
             this.modal = $('#wcat-export-modal');
             
@@ -24,8 +22,6 @@
                 console.error('WC Cart Tracker: Export modal not found in DOM');
                 return;
             }
-
-            console.log('WC Cart Tracker: Modal found, binding events...');
             this.bindEvents();
             this.loadTemplates();
         },
@@ -34,27 +30,20 @@
             // Open modal - CRITICAL: This is what triggers when you click the export button
             $(document).on('click', '[data-wcat-export]', (e) => {
                 e.preventDefault();
-                console.log('WC Cart Tracker: Export button clicked!');
                 
                 const $btn = $(e.currentTarget);
                 this.exportType = $btn.data('wcat-export');
                 this.format = $btn.data('format') || 'csv';
                 
-                console.log('Export Type:', this.exportType);
-                console.log('Format:', this.format);
-                
                 // Parse filters from data attribute
                 const filtersAttr = $btn.data('filters');
                 this.filters = typeof filtersAttr === 'string' ? JSON.parse(filtersAttr) : (filtersAttr || {});
-                
-                console.log('Filters:', this.filters);
                 
                 this.open();
             });
 
             // Close modal
             $('.wcat-export-modal-close, [data-action="cancel"]').on('click', () => {
-                console.log('Closing modal...');
                 this.close();
             });
             
@@ -100,20 +89,15 @@
                     this.close();
                 }
             });
-
-            console.log('WC Cart Tracker: Events bound successfully');
         },
 
         open() {
-            console.log('WC Cart Tracker: Opening modal...');
             this.resetToDefault();
             this.modal.addClass('active');
             $('body').css('overflow', 'hidden');
-            console.log('WC Cart Tracker: Modal opened');
         },
 
         close() {
-            console.log('WC Cart Tracker: Closing modal...');
             this.modal.removeClass('active');
             $('body').css('overflow', '');
             this.hideSaveTemplateForm();
@@ -125,8 +109,6 @@
                 return;
             }
 
-            console.log('WC Cart Tracker: Loading templates via AJAX...');
-
             $.ajax({
                 url: wcatExport.ajaxUrl,
                 type: 'POST',
@@ -135,10 +117,11 @@
                     nonce: wcatExport.nonce
                 },
                 success: (response) => {
-                    console.log('WC Cart Tracker: Templates loaded', response);
+                    
                     if (response.success) {
                         this.templates = response.data.templates || {};
                         this.availableColumns = response.data.columns || {};
+                        
                         this.populateTemplateSelect();
                         this.renderColumns();
                     } else {
@@ -147,6 +130,7 @@
                 },
                 error: (xhr, status, error) => {
                     console.error('AJAX error loading templates:', error);
+                    console.error('Response text:', xhr.responseText);
                 }
             });
         },
@@ -257,6 +241,7 @@
 
         loadTemplate() {
             const templateId = $('#wcat-template-select').val();
+            
             if (!templateId) {
                 return;
             }
@@ -267,12 +252,23 @@
             }
 
             const template = this.templates[templateId];
+            
             if (template && template.columns) {
                 $('.wcat-column-checkbox').prop('checked', false);
+                
+                let checkedCount = 0;
                 $.each(template.columns, (i, colKey) => {
-                    $('.wcat-column-checkbox[value="' + colKey + '"]').prop('checked', true);
+                    const $checkbox = $('.wcat-column-checkbox[value="' + colKey + '"]');
+                    if ($checkbox.length > 0) {
+                        $checkbox.prop('checked', true);
+                        checkedCount++;
+                    } else {
+                        console.warn('Column not found in UI:', colKey);
+                    }
                 });
                 this.updateSelectedCount();
+            } else {
+                console.error('Template not found or has no columns:', templateId);
             }
         },
 
@@ -301,12 +297,14 @@
             }
 
             const columns = this.getSelectedColumns();
+            
             if (columns.length === 0) {
                 alert('Please select at least one column');
                 return;
             }
 
             const isGlobal = $('#wcat-template-global').is(':checked');
+
 
             $.ajax({
                 url: wcatExport.ajaxUrl,
@@ -315,7 +313,7 @@
                     action: 'wcat_save_template',
                     nonce: wcatExport.nonce,
                     name: name,
-                    columns: columns,
+                    columns: JSON.stringify(columns), // Convert to JSON string
                     is_global: isGlobal
                 },
                 success: (response) => {
@@ -324,12 +322,19 @@
                         this.loadTemplates();
                         this.hideSaveTemplateForm();
                     } else {
-                        alert('Error: ' + (response.data.message || 'Unknown error'));
+                        const errorMsg = response.data && response.data.message ? response.data.message : 'Unknown error';
+                        console.error('Save failed:', errorMsg);
+                        alert('Error: ' + errorMsg);
                     }
                 },
                 error: (xhr, status, error) => {
-                    console.error('AJAX error:', error);
-                    alert('Error saving template. Please try again.');
+                    console.error('AJAX error details:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+                    alert('Error saving template. Check console for details.');
                 }
             });
         },
@@ -376,8 +381,6 @@
                 return;
             }
 
-            console.log('Exporting with columns:', columns);
-
             // Build export URL with selected columns
             const params = {
                 wcat_export: this.exportType,
@@ -389,8 +392,6 @@
 
             const url = wcatExport.adminUrl + '?' + $.param(params);
             
-            console.log('Export URL:', url);
-            
             // Trigger download
             window.location.href = url;
             
@@ -401,7 +402,6 @@
 
     // Initialize when DOM is ready
     $(document).ready(() => {
-        console.log('WC Cart Tracker: Document ready, initializing export modal...');
         ExportModal.init();
     });
 

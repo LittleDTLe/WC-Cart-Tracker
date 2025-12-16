@@ -150,13 +150,26 @@ class WC_Cart_Tracker_Export_Templates
             return new WP_Error('no_user', __('Must be logged in to save templates', 'wc-all-cart-tracker'));
         }
 
-        // Validate columns
+        // Get available columns
         $available_columns = array_keys(self::get_available_columns());
+
+        // Ensure $columns is an array
+        if (!is_array($columns)) {
+            return new WP_Error('invalid_columns', __('Invalid columns format', 'wc-all-cart-tracker'));
+        }
+
+        // Remove any empty values
+        $columns = array_filter($columns);
+
+        // Validate columns - keep only valid ones
         $columns = array_intersect($columns, $available_columns);
 
         if (empty($columns)) {
             return new WP_Error('no_columns', __('No valid columns selected', 'wc-all-cart-tracker'));
         }
+
+        // Re-index the array to ensure it's a proper sequential array
+        $columns = array_values($columns);
 
         $template = array(
             'name' => sanitize_text_field($template_name),
@@ -169,21 +182,31 @@ class WC_Cart_Tracker_Export_Templates
         if ($template['is_global']) {
             // Save as site option for all users
             $global_templates = get_option('wcat_global_export_templates', array());
+
             $template_id = 'global_' . sanitize_title($template_name) . '_' . time();
             $global_templates[$template_id] = $template;
-            update_option('wcat_global_export_templates', $global_templates);
+
+            $update_result = update_option('wcat_global_export_templates', $global_templates);
+
+            // Verify what was actually saved
+            $verify = get_option('wcat_global_export_templates');
 
             return $template_id;
         } else {
             // Save as user meta
             $user_templates = get_user_meta($user_id, self::META_KEY, true);
+
             if (!is_array($user_templates)) {
                 $user_templates = array();
             }
 
             $template_id = 'user_' . sanitize_title($template_name) . '_' . time();
             $user_templates[$template_id] = $template;
-            update_user_meta($user_id, self::META_KEY, $user_templates);
+
+            $update_result = update_user_meta($user_id, self::META_KEY, $user_templates);
+
+            // Verify what was actually saved
+            $verify = get_user_meta($user_id, self::META_KEY, true);
 
             return $template_id;
         }
@@ -194,20 +217,26 @@ class WC_Cart_Tracker_Export_Templates
      */
     public static function get_user_templates($include_global = true)
     {
+
         $user_id = get_current_user_id();
+
         $templates = array();
 
         // Get user's personal templates
         if ($user_id > 0) {
             $user_templates = get_user_meta($user_id, self::META_KEY, true);
+
             if (is_array($user_templates)) {
                 $templates = $user_templates;
+            } else {
+                error_log('User templates is not an array!');
             }
         }
 
         // Get global templates
         if ($include_global) {
             $global_templates = get_option('wcat_global_export_templates', array());
+
             if (is_array($global_templates)) {
                 $templates = array_merge($templates, $global_templates);
             }
@@ -215,12 +244,13 @@ class WC_Cart_Tracker_Export_Templates
 
         // Sort by creation date (newest first)
         uasort($templates, function ($a, $b) {
-            return strtotime($b['created']) - strtotime($a['created']);
+            $time_a = isset($a['created']) ? strtotime($a['created']) : 0;
+            $time_b = isset($b['created']) ? strtotime($b['created']) : 0;
+            return $time_b - $time_a;
         });
 
         return $templates;
     }
-
     /**
      * Get a specific template
      */
@@ -394,3 +424,71 @@ class WC_Cart_Tracker_Export_Templates
         return $headers;
     }
 }
+
+add_action('admin_init', function () {
+    if (!isset($_GET['test_template_save']) || !current_user_can('manage_woocommerce')) {
+        return;
+    }
+
+    echo '<pre style="background: #f5f5f5; padding: 20px; margin: 20px;">';
+    echo '<h2>Direct Template Save Test</h2>';
+
+    // Test 1: Save a template directly
+    echo '<h3>Test 1: Saving a test template...</h3>';
+
+    $test_columns = array('id', 'date', 'customer_email', 'cart_total');
+    echo 'Columns to save: ' . print_r($test_columns, true) . "\n";
+
+    $result = WC_Cart_Tracker_Export_Templates::save_template(
+        'Test Template ' . time(),
+        $test_columns,
+        false
+    );
+
+    if (is_wp_error($result)) {
+        echo '<strong style="color: red;">FAILED: ' . $result->get_error_message() . '</strong>' . "\n";
+    } else {
+        echo '<strong style="color: green;">SUCCESS!</strong>' . "\n";
+        echo 'Template ID: ' . $result . "\n\n";
+
+        // Test 2: Read it back
+        echo '<h3>Test 2: Reading template back...</h3>';
+        $template = WC_Cart_Tracker_Export_Templates::get_template($result);
+
+        if ($template) {
+            echo 'Template data:' . "\n";
+            echo print_r($template, true) . "\n";
+
+            // Check if columns are present
+            if (isset($template['columns']) && is_array($template['columns'])) {
+                echo '<strong style="color: green;">✓ Columns field exists and is an array</strong>' . "\n";
+                echo 'Columns count: ' . count($template['columns']) . "\n";
+                echo 'Columns: ' . implode(', ', $template['columns']) . "\n";
+            } else {
+                echo '<strong style="color: red;">✗ Columns field is missing or not an array!</strong>' . "\n";
+                echo 'Columns value: ' . print_r($template['columns'] ?? 'NOT SET', true) . "\n";
+            }
+        } else {
+            echo '<strong style="color: red;">Template not found!</strong>' . "\n";
+        }
+
+        // Test 3: Get all templates
+        echo "\n" . '<h3>Test 3: Getting all user templates...</h3>';
+        $all_templates = WC_Cart_Tracker_Export_Templates::get_user_templates(true);
+        echo 'Total templates found: ' . count($all_templates) . "\n\n";
+
+        foreach ($all_templates as $tid => $t) {
+            echo 'ID: ' . $tid . "\n";
+            echo '  Name: ' . $t['name'] . "\n";
+            echo '  Columns: ' . (isset($t['columns']) ? implode(', ', $t['columns']) : 'NOT SET') . "\n";
+            echo '  Columns count: ' . (isset($t['columns']) ? count($t['columns']) : '0') . "\n";
+            echo "\n";
+        }
+    }
+
+    echo "\n" . '<h3>Check debug.log for detailed logs</h3>';
+    echo 'Location: ' . WP_CONTENT_DIR . '/debug.log';
+
+    echo '</pre>';
+    exit;
+});
