@@ -20,6 +20,7 @@ class WC_Cart_Tracker_Admin
         add_action('wp_ajax_wcat_save_refresh_setting', array($this, 'ajax_save_refresh_setting'));
         add_action('admin_footer', array($this, 'render_export_modal'));
 
+
         if (file_exists(WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-optimization-admin.php')) {
             require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-optimization-admin.php';
             new WC_Cart_Tracker_Optimization_Admin();
@@ -46,14 +47,15 @@ class WC_Cart_Tracker_Admin
             array($this, 'render_history_page')
         );
 
-        add_submenu_page(
-            'woocommerce',
-            __('Scheduled Exports', 'wc-all-cart-tracker'),
-            __('Scheduled Exports', 'wc-all-cart-tracker'),
-            'manage_woocommerce',
-            'wc-cart-scheduled-exports',
-            array($this, 'render_scheduled_exports_page')
-        );
+        // Remove Comments when View has been created! 
+        // add_submenu_page(
+        //     'woocommerce',
+        //     __('Scheduled Exports', 'wc-all-cart-tracker'),
+        //     __('Scheduled Exports', 'wc-all-cart-tracker'),
+        //     'manage_woocommerce',
+        //     'wc-cart-scheduled-exports',
+        //     array($this, 'render_scheduled_exports_page')
+        // );
     }
 
     public function enqueue_admin_assets($hook)
@@ -68,7 +70,7 @@ class WC_Cart_Tracker_Admin
         // Enqueue main admin styles
         wp_enqueue_style(
             'wc-cart-tracker-admin',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-styles.css',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/admin-styles.css',
             array(),
             WC_CART_TRACKER_VERSION
         );
@@ -76,7 +78,7 @@ class WC_Cart_Tracker_Admin
         // Enqueue export modal styles
         wp_enqueue_style(
             'wc-cart-tracker-export-modal',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/export-modal.css',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/export-modal.css',
             array(),
             WC_CART_TRACKER_VERSION
         );
@@ -84,7 +86,7 @@ class WC_Cart_Tracker_Admin
         // Enqueue main admin scripts
         wp_enqueue_script(
             'wc-cart-tracker-admin',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/admin-scripts.js',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/admin-scripts.js',
             array('jquery'),
             WC_CART_TRACKER_VERSION,
             true
@@ -93,8 +95,25 @@ class WC_Cart_Tracker_Admin
         // Enqueue export modal scripts
         wp_enqueue_script(
             'wc-cart-tracker-export-modal',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/export-modal.js',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/export-modal.js',
             array('jquery', 'wc-cart-tracker-admin'), // Depends on main admin script
+            WC_CART_TRACKER_VERSION,
+            true
+        );
+
+        // Enqueue Scripts for Scheduled Exports Page
+        wp_enqueue_style(
+            'wc-cart-tracker-scheduled-exports',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/scheduled-exports.css',
+            array(),
+            WC_CART_TRACKER_VERSION
+        );
+
+        // Enqueue Styles for Scheduled Exports Page
+        wp_enqueue_script(
+            'wc-cart-tracker-scheduled-exports',
+            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/scheduled-exports.js',
+            array('jquery'),
             WC_CART_TRACKER_VERSION,
             true
         );
@@ -119,22 +138,7 @@ class WC_Cart_Tracker_Admin
             'exportNonce' => wp_create_nonce('wcat_export_nonce'),
         ));
 
-
-        wp_enqueue_style(
-            'wc-cart-tracker-scheduled-exports',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/scheduled-exports.css',
-            array(),
-            WC_CART_TRACKER_VERSION
-        );
-
-        wp_enqueue_script(
-            'wc-cart-tracker-scheduled-exports',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/scheduled-exports.js',
-            array('jquery'),
-            WC_CART_TRACKER_VERSION,
-            true
-        );
-
+        // Localisze script for Scheduled Exports
         wp_localize_script('wc-cart-tracker-scheduled-exports', 'wcatScheduledExport', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wcat_scheduled_export'),
