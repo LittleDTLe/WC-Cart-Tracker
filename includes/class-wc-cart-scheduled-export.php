@@ -41,9 +41,7 @@ class WC_Cart_Tracker_Scheduled_Export
         add_action('wcat_scheduled_export_monthly', array($this, 'run_scheduled_export'));
 
         // Admin hooks
-        add_action('admin_menu', array($this, 'add_scheduled_export_menu'), 75);
         add_action('admin_init', array($this, 'handle_schedule_actions'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
 
         // AJAX handlers
         add_action('wp_ajax_wcat_test_scheduled_export', array($this, 'ajax_test_export'));

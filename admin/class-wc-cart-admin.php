@@ -48,14 +48,14 @@ class WC_Cart_Tracker_Admin
         );
 
         // Remove Comments when View has been created! 
-        // add_submenu_page(
-        //     'woocommerce',
-        //     __('Scheduled Exports', 'wc-all-cart-tracker'),
-        //     __('Scheduled Exports', 'wc-all-cart-tracker'),
-        //     'manage_woocommerce',
-        //     'wc-cart-scheduled-exports',
-        //     array($this, 'render_scheduled_exports_page')
-        // );
+        add_submenu_page(
+            'woocommerce',
+            __('Scheduled Exports', 'wc-all-cart-tracker'),
+            __('Scheduled Exports', 'wc-all-cart-tracker'),
+            'manage_woocommerce',
+            'wc-cart-scheduled-exports',
+            array(WC_Cart_Tracker_Scheduled_Export::get_instance(), 'render_scheduled_exports_page')
+        );
     }
 
     public function enqueue_admin_assets($hook)
@@ -96,7 +96,7 @@ class WC_Cart_Tracker_Admin
         wp_enqueue_script(
             'wc-cart-tracker-export-modal',
             WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/export-modal.js',
-            array('jquery', 'wc-cart-tracker-admin'), // Depends on main admin script
+            array('jquery', 'wc-cart-tracker-admin'),
             WC_CART_TRACKER_VERSION,
             true
         );
