@@ -613,4 +613,32 @@ $available_columns = WC_Cart_Tracker_Export_Templates::get_available_columns();
             </div>
         </div>
     </div>
+    <!-- 
+    <script>
+        jQuery(document).ready(function ($) {
+            console.log('=== WCAT DEBUGGING CHECKER ===');
+
+            // Check wcatScheduledExport
+            if (typeof wcatScheduledExport !== 'undefined') {
+                console.log('✓ wcatScheduledExport exists');
+                console.log('AJAX URL:', wcatScheduledExport.ajaxUrl);
+                console.log('Nonce:', wcatScheduledExport.nonce);
+            } else {
+                console.error('✗ wcatScheduledExport NOT FOUND - Scripts not loading!');
+            }
+
+            // Check buttons
+            console.log('Test buttons:', $('.wcat-test-export').length);
+            console.log('Delete buttons:', $('.wcat-delete-schedule').length);
+
+            // Manual test
+            $(document).on('click', '.wcat-test-export', function () {
+                console.log('TEST CLICKED:', $(this).data('schedule-id'));
+            });
+
+            $(document).on('click', '.wcat-delete-schedule', function () {
+                console.log('DELETE CLICKED:', $(this).data('schedule-id'));
+            });
+        });
+    </script> -->
 </div>

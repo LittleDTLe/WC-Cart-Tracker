@@ -20,7 +20,6 @@ class WC_Cart_Tracker_Admin
         add_action('wp_ajax_wcat_save_refresh_setting', array($this, 'ajax_save_refresh_setting'));
         add_action('admin_footer', array($this, 'render_export_modal'));
 
-
         if (file_exists(WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-optimization-admin.php')) {
             require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-optimization-admin.php';
             new WC_Cart_Tracker_Optimization_Admin();
@@ -47,7 +46,6 @@ class WC_Cart_Tracker_Admin
             array($this, 'render_history_page')
         );
 
-        // Remove Comments when View has been created! 
         add_submenu_page(
             'woocommerce',
             __('Scheduled Exports', 'wc-all-cart-tracker'),
@@ -60,6 +58,9 @@ class WC_Cart_Tracker_Admin
 
     public function enqueue_admin_assets($hook)
     {
+        // Debug logging
+        error_log('WCAT Admin: enqueue_admin_assets called on hook: ' . $hook);
+
         // Only on cart tracker pages
         if (
             !in_array($hook, array(
@@ -89,26 +90,11 @@ class WC_Cart_Tracker_Admin
             WC_CART_TRACKER_VERSION
         );
 
-        // Enqueue main admin scripts
-        wp_enqueue_script(
-            'wc-cart-tracker-admin',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/admin-scripts.js',
-            array('jquery'),
-            WC_CART_TRACKER_VERSION,
-            true
-        );
-
-        // Enqueue export modal scripts
-        wp_enqueue_script(
-            'wc-cart-tracker-export-modal',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/export-modal.js',
-            array('jquery', 'wc-cart-tracker-admin'),
-            WC_CART_TRACKER_VERSION,
-            true
-        );
-
-        // Enqueue Scheduled Exports JS on the right page
+        // ===== SCHEDULED EXPORTS PAGE - CRITICAL FIX =====
         if ($hook === 'woocommerce_page_wc-cart-scheduled-exports') {
+            error_log('WCAT: Loading scheduled exports assets');
+
+            // Enqueue scheduled exports CSS
             wp_enqueue_style(
                 'wc-cart-tracker-scheduled-exports',
                 WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/scheduled-exports.css',
@@ -116,6 +102,7 @@ class WC_Cart_Tracker_Admin
                 WC_CART_TRACKER_VERSION
             );
 
+            // Enqueue scheduled exports JS
             wp_enqueue_script(
                 'wc-cart-tracker-scheduled-exports',
                 WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/scheduled-exports.js',
@@ -124,21 +111,46 @@ class WC_Cart_Tracker_Admin
                 true
             );
 
-            // Localize script for Scheduled Exports
+            // Localize script - CRITICAL: This makes AJAX work
             wp_localize_script('wc-cart-tracker-scheduled-exports', 'wcatScheduledExport', array(
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('wcat_scheduled_export'),
                 'strings' => array(
                     'confirm_delete' => __('Are you sure you want to delete this schedule?', 'wc-all-cart-tracker'),
+                    'confirm_test' => __('Send a test export now?', 'wc-all-cart-tracker'),
                     'testing' => __('Testing...', 'wc-all-cart-tracker'),
                     'test_success' => __('Test export sent successfully!', 'wc-all-cart-tracker'),
                     'test_failed' => __('Test export failed. Check the logs.', 'wc-all-cart-tracker'),
                 )
             ));
+
+            error_log('WCAT: Scheduled exports scripts localized with nonce: ' . wp_create_nonce('wcat_scheduled_export'));
+
+            // Return early - don't load other scripts
+            return;
         }
 
-        // Localize script for main admin functionality (dashboard/history)
+        // ===== DASHBOARD AND HISTORY PAGES =====
         if (in_array($hook, array('woocommerce_page_wc-all-cart-tracker', 'woocommerce_page_wc-cart-history'))) {
+            // Enqueue main admin scripts
+            wp_enqueue_script(
+                'wc-cart-tracker-admin',
+                WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/admin-scripts.js',
+                array('jquery'),
+                WC_CART_TRACKER_VERSION,
+                true
+            );
+
+            // Enqueue export modal scripts
+            wp_enqueue_script(
+                'wc-cart-tracker-export-modal',
+                WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/export-modal.js',
+                array('jquery', 'wc-cart-tracker-admin'),
+                WC_CART_TRACKER_VERSION,
+                true
+            );
+
+            // Localize script for main admin functionality
             wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('wcat_ajax_nonce'),
@@ -158,7 +170,6 @@ class WC_Cart_Tracker_Admin
             ));
         }
     }
-
 
     public function render_dashboard_page()
     {
@@ -180,7 +191,7 @@ class WC_Cart_Tracker_Admin
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/export-modal.php';
     }
 
-    // --- AJAX Handler ---
+    // AJAX Handler for dashboard refresh
     public function ajax_refresh_dashboard()
     {
         check_ajax_referer('wcat_ajax_nonce', 'security');
@@ -212,11 +223,10 @@ class WC_Cart_Tracker_Admin
         // Bypass flag
         $bypass_cache = isset($_POST['bypass_cache']) && $_POST['bypass_cache'] === 'true';
 
-        //Check if Analytics class is available and Clear Cache
+        // Check if Analytics class is available and Clear Cache
         if ($bypass_cache && class_exists('WC_Cart_Tracker_Analytics')) {
-            // Clear the cache for the specific time period being viewed
             if ($days === 'custom' && !empty($date_from) && !empty($date_to)) {
-                WC_Cart_Tracker_Analytics::clear_cache(); // Clear all custom caches
+                WC_Cart_Tracker_Analytics::clear_cache();
             } else {
                 WC_Cart_Tracker_Analytics::clear_cache(absint($days));
             }
@@ -248,9 +258,9 @@ class WC_Cart_Tracker_Admin
 
         $carts = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$table_name} 
-        WHERE is_active = %d AND last_updated >= %s 
-        ORDER BY {$orderby} {$order}
-        LIMIT %d OFFSET %d",
+            WHERE is_active = %d AND last_updated >= %s 
+            ORDER BY {$orderby} {$order}
+            LIMIT %d OFFSET %d",
             1,
             $recent_date,
             $per_page,
@@ -295,7 +305,6 @@ class WC_Cart_Tracker_Admin
 
     public function ajax_save_refresh_setting()
     {
-        // 1. Security Check (using the specific nonce for this setting)
         check_ajax_referer('wcat_save_settings_nonce', 'security');
 
         if (!current_user_can('manage_woocommerce')) {
@@ -303,15 +312,11 @@ class WC_Cart_Tracker_Admin
         }
 
         $enabled_state = isset($_POST['enabled']) ? sanitize_text_field($_POST['enabled']) : 'no';
-
-        // 2. Update the WordPress option
         update_option('wcat_auto_refresh_enabled', $enabled_state);
 
-        // 3. Success
         wp_send_json_success(array(
             'status' => $enabled_state,
             'message' => 'Auto-refresh setting saved.'
         ));
     }
-
 }

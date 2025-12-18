@@ -1,27 +1,18 @@
-/**
- * Scheduled Exports JavaScript
- */
-
 jQuery(document).ready(function ($) {
     'use strict';
-
-    // Check if wcatScheduledExport is defined
-    if (typeof wcatScheduledExport === 'undefined') {
-        console.error('WC Cart Tracker: wcatScheduledExport object not found');
-        return;
-    }
-
-    // Test export button
-    $(document).on('click', '.wcat-test-export', function () {
-        const scheduleId = $(this).data('schedule-id');
+    $(document).on('click', '.wcat-test-export', function (e) {
+        e.preventDefault();
+        
         const $button = $(this);
+        const scheduleId = $button.data('schedule-id');
         const originalText = $button.text();
 
-        if (!confirm('Send a test export now?')) {
+
+        if (!confirm(wcatScheduledExport.strings.confirm_test || 'Send a test export now?')) {
             return;
         }
 
-        $button.prop('disabled', true).text(wcatScheduledExport.strings.testing);
+        $button.prop('disabled', true).text(wcatScheduledExport.strings.testing || 'Testing...');
 
         $.ajax({
             url: wcatScheduledExport.ajaxUrl,
@@ -32,8 +23,10 @@ jQuery(document).ready(function ($) {
                 schedule_id: scheduleId
             },
             success: function (response) {
+                console.log('Test export response:', response);
+                
                 if (response.success) {
-                    alert(wcatScheduledExport.strings.test_success);
+                    alert(response.data.message || wcatScheduledExport.strings.test_success);
                 } else {
                     const message = response.data && response.data.message ? 
                         response.data.message : 
@@ -42,8 +35,12 @@ jQuery(document).ready(function ($) {
                 }
             },
             error: function (xhr, status, error) {
-                console.error('AJAX Error:', error);
-                alert(wcatScheduledExport.strings.test_failed);
+                console.error('AJAX Error:', {
+                    status: status,
+                    error: error,
+                    response: xhr.responseText
+                });
+                alert(wcatScheduledExport.strings.test_failed || 'Test export failed');
             },
             complete: function () {
                 $button.prop('disabled', false).text(originalText);
@@ -51,15 +48,17 @@ jQuery(document).ready(function ($) {
         });
     });
 
-    // Delete schedule button
-    $(document).on('click', '.wcat-delete-schedule', function () {
-        const scheduleId = $(this).data('schedule-id');
+    // Delete schedule button - Using event delegation
+    $(document).on('click', '.wcat-delete-schedule', function (e) {
+        e.preventDefault();
+        
+        const $button = $(this);
+        const scheduleId = $button.data('schedule-id');
 
-        if (!confirm(wcatScheduledExport.strings.confirm_delete)) {
+        if (!confirm(wcatScheduledExport.strings.confirm_delete || 'Are you sure you want to delete this schedule?')) {
             return;
         }
 
-        const $button = $(this);
         $button.prop('disabled', true);
 
         $.ajax({
@@ -71,24 +70,34 @@ jQuery(document).ready(function ($) {
                 schedule_id: scheduleId
             },
             success: function (response) {
+                
                 if (response.success) {
+                    alert(response.data.message || 'Schedule deleted successfully');
                     location.reload();
                 } else {
-                    alert('Failed to delete schedule');
+                    const message = response.data && response.data.message ? 
+                        response.data.message : 
+                        'Failed to delete schedule';
+                    alert(message);
                     $button.prop('disabled', false);
                 }
             },
-            error: function () {
-                alert('Failed to delete schedule');
+            error: function (xhr, status, error) {
+                console.error('AJAX Error:', {
+                    status: status,
+                    error: error,
+                    response: xhr.responseText
+                });
+                alert('Failed to delete schedule. Check console for details.');
                 $button.prop('disabled', false);
             }
         });
     });
 
-    // Show/hide delivery method settings
+    // Delivery method toggle
     $('#delivery_method').on('change', function () {
         const method = $(this).val();
-
+        
         if (method === 'email') {
             $('.email-settings').show();
             $('.ftp-settings').hide();
@@ -112,11 +121,12 @@ jQuery(document).ready(function ($) {
     $('#select-default-columns').on('click', function (e) {
         e.preventDefault();
         $('.wcat-columns-grid input[type="checkbox"]').each(function () {
-            $(this).prop('checked', $(this).data('default') === 'yes');
+            const isDefault = $(this).data('default') === 'yes';
+            $(this).prop('checked', isDefault);
         });
     });
 
-    // Form validation before submit
+    // Form validation
     $('.wcat-schedule-form').on('submit', function (e) {
         const scheduleName = $('#schedule_name').val().trim();
         const deliveryMethod = $('#delivery_method').val();
@@ -141,8 +151,18 @@ jQuery(document).ready(function ($) {
             return false;
         }
 
+        console.log('Form validation passed');
         return true;
     });
 
-    console.log('WC Cart Tracker: Scheduled Exports JS loaded successfully');
+    // Hover effects for column checkboxes
+    $('.column-checkbox-label').hover(
+        function() {
+            $(this).css('background-color', '#f0f0f0');
+        },
+        function() {
+            $(this).css('background-color', '#fff');
+        }
+    );
+
 });
