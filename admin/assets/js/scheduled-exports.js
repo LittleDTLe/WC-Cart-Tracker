@@ -1,3 +1,0 @@
-/**
- * Scheduled Exports JavaScript
- */

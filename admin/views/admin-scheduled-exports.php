@@ -2,8 +2,6 @@
 /**
  * Admin View: Scheduled Exports Page
  * 
- * CREATE THIS FILE: admin/views/admin-scheduled-exports.php
- * 
  * This is the complete admin interface for managing scheduled exports
  * 
  * @package WC_All_Cart_Tracker
@@ -27,6 +25,7 @@ if (isset($_GET['edit'])) {
 // Get available columns for selection
 $available_columns = WC_Cart_Tracker_Export_Templates::get_available_columns();
 ?>
+
 
 <div class="wrap wcat-scheduled-exports-wrap">
     <h1 class="wp-heading-inline">
@@ -499,105 +498,220 @@ $available_columns = WC_Cart_Tracker_Export_Templates::get_available_columns();
         </div>
 
     </div>
+    <?php
+    /**
+     * Add this to the Scheduled Exports admin page
+     * Place it in a new section for debugging
+     */
+
+    // Add to admin/views/admin-scheduled-exports.php before closing </div>
+    ?>
+
+    <!-- Email Diagnostic Section -->
+    <div class="postbox wcat-diagnostic-card" style="margin-top: 20px;">
+        <div class="postbox-header">
+            <h2 class="hndle">
+                <span class="dashicons dashicons-admin-tools" style="margin-right: 5px;"></span>
+                <?php esc_html_e('Email Diagnostic Tool', 'wc-all-cart-tracker'); ?>
+            </h2>
+        </div>
+        <div class="inside">
+            <p><?php esc_html_e('Test your email configuration before scheduling exports.', 'wc-all-cart-tracker'); ?>
+            </p>
+
+            <form method="post" action="" id="wcat-test-email-form">
+                <?php wp_nonce_field('wcat_test_email'); ?>
+                <input type="hidden" name="wcat_action" value="test_email">
+
+                <table class="form-table">
+                    <tbody>
+                        <tr>
+                            <th scope="row">
+                                <label for="test_email_recipient">
+                                    <?php esc_html_e('Test Email Recipient:', 'wc-all-cart-tracker'); ?>
+                                </label>
+                            </th>
+                            <td>
+                                <input type="email" id="test_email_recipient" name="test_email_recipient"
+                                    value="<?php echo esc_attr(get_option('admin_email')); ?>" class="regular-text"
+                                    required>
+                                <p class="description">
+                                    <?php esc_html_e('Email address to receive the test message', 'wc-all-cart-tracker'); ?>
+                                </p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p class="submit">
+                    <button type="submit" class="button button-primary">
+                        <?php esc_html_e('Send Test Email', 'wc-all-cart-tracker'); ?>
+                    </button>
+                </p>
+            </form>
+
+            <hr style="margin: 20px 0;">
+
+            <h3><?php esc_html_e('Current Configuration', 'wc-all-cart-tracker'); ?></h3>
+            <table class="widefat" style="max-width: 600px;">
+                <tbody>
+                    <tr>
+                        <td><strong><?php esc_html_e('Admin Email:', 'wc-all-cart-tracker'); ?></strong></td>
+                        <td><?php echo esc_html(get_option('admin_email')); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('SMTP Configured:', 'wc-all-cart-tracker'); ?></strong></td>
+                        <td>
+                            <?php
+                            $smtp_configured = defined('WPMS_ON') && WPMS_ON ||
+                                defined('WPMS_SMTP_PASS') ||
+                                get_option('wpmailsmtp_smtp') ||
+                                get_option('smtp_settings');
+                            echo $smtp_configured ?
+                                '<span style="color: green;">✓ Yes</span>' :
+                                '<span style="color: orange;">⚠ Using default (may be unreliable)</span>';
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('WP Cron:', 'wc-all-cart-tracker'); ?></strong></td>
+                        <td>
+                            <?php
+                            echo defined('DISABLE_WP_CRON') && DISABLE_WP_CRON ?
+                                '<span style="color: red;">✗ Disabled</span>' :
+                                '<span style="color: green;">✓ Enabled</span>';
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Debug Mode:', 'wc-all-cart-tracker'); ?></strong></td>
+                        <td>
+                            <?php
+                            echo defined('WP_DEBUG') && WP_DEBUG ?
+                                '<span style="color: green;">✓ Enabled</span>' :
+                                '<span style="color: orange;">⚠ Disabled</span>';
+                            ?>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div
+                style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <strong><?php esc_html_e('📌 Troubleshooting Tips:', 'wc-all-cart-tracker'); ?></strong>
+                <ul style="margin: 10px 0 0 20px;">
+                    <li><?php esc_html_e('Enable WP_DEBUG to see error logs in wp-content/debug.log', 'wc-all-cart-tracker'); ?>
+                    </li>
+                    <li><?php esc_html_e('Install an SMTP plugin (WP Mail SMTP, Easy WP SMTP) for reliable delivery', 'wc-all-cart-tracker'); ?>
+                    </li>
+                    <li><?php esc_html_e('Check your server\'s PHP mail() function is working', 'wc-all-cart-tracker'); ?>
+                    </li>
+                    <li><?php esc_html_e('Verify email recipients are correct (no typos)', 'wc-all-cart-tracker'); ?>
+                    </li>
+                    <li><?php esc_html_e('Check spam/junk folders', 'wc-all-cart-tracker'); ?></li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 
-jQuery(document).ready(function($) {
-    
-    // Test export button
-    $('.wcat-test-export').on('click', function() {
-        const scheduleId = $(this).data('schedule-id');
-        const $button = $(this);
-        const originalText = $button.text();
-        
-        if (!confirm('Send a test export now?')) {
-            return;
-        }
-        
-        $button.prop('disabled', true).text(wcatScheduledExport.strings.testing);
-        
-        $.ajax({
-            url: wcatScheduledExport.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'wcat_test_scheduled_export',
-                nonce: wcatScheduledExport.nonce,
-                schedule_id: scheduleId
-            },
-            success: function(response) {
-                if (response.success) {
-                    alert(wcatScheduledExport.strings.test_success);
-                } else {
-                    alert(wcatScheduledExport.strings.test_failed);
-                }
-            },
-            error: function() {
-                alert(wcatScheduledExport.strings.test_failed);
-            },
-            complete: function() {
-                $button.prop('disabled', false).text(originalText);
+    jQuery(document).ready(function ($) {
+
+        // Test export button
+        $('.wcat-test-export').on('click', function () {
+            const scheduleId = $(this).data('schedule-id');
+            const $button = $(this);
+            const originalText = $button.text();
+
+            if (!confirm('Send a test export now?')) {
+                return;
             }
+
+            $button.prop('disabled', true).text(wcatScheduledExport.strings.testing);
+
+            $.ajax({
+                url: wcatScheduledExport.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'wcat_test_scheduled_export',
+                    nonce: wcatScheduledExport.nonce,
+                    schedule_id: scheduleId
+                },
+                success: function (response) {
+                    if (response.success) {
+                        alert(wcatScheduledExport.strings.test_success);
+                    } else {
+                        alert(wcatScheduledExport.strings.test_failed);
+                    }
+                },
+                error: function () {
+                    alert(wcatScheduledExport.strings.test_failed);
+                },
+                complete: function () {
+                    $button.prop('disabled', false).text(originalText);
+                }
+            });
         });
-    });
-    
-    // Delete schedule button
-    $('.wcat-delete-schedule').on('click', function() {
-        const scheduleId = $(this).data('schedule-id');
-        
-        if (!confirm(wcatScheduledExport.strings.confirm_delete)) {
-            return;
-        }
-        
-        $.ajax({
-            url: wcatScheduledExport.ajaxUrl,
-            type: 'POST',
-            data: {
-                action: 'wcat_delete_schedule',
-                nonce: wcatScheduledExport.nonce,
-                schedule_id: scheduleId
-            },
-            success: function(response) {
-                if (response.success) {
-                    location.reload();
-                } else {
+
+        // Delete schedule button
+        $('.wcat-delete-schedule').on('click', function () {
+            const scheduleId = $(this).data('schedule-id');
+
+            // if (!confirm(wcatScheduledExport.strings.confirm_delete)) {
+            //     return;
+            // }
+
+            $.ajax({
+                url: wcatScheduledExport.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'wcat_delete_schedule',
+                    nonce: wcatScheduledExport.nonce,
+                    schedule_id: scheduleId
+                },
+                success: function (response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('Failed to delete schedule');
+                    }
+                },
+                error: function () {
                     alert('Failed to delete schedule');
                 }
-            },
-            error: function() {
-                alert('Failed to delete schedule');
+            });
+        });
+
+        // Show/hide delivery method settings
+        $('#delivery_method').on('change', function () {
+            const method = $(this).val();
+
+            if (method === 'email') {
+                $('.email-settings').show();
+                $('.ftp-settings').hide();
+            } else if (method === 'ftp') {
+                $('.email-settings').hide();
+                $('.ftp-settings').show();
             }
+        }).trigger('change');
+
+
+        // Column selection quick actions
+        $('#select-all-columns').on('click', function () {
+            $('.wcat-columns-grid input[type="checkbox"]').prop('checked', true);
         });
-    });
-    
-    // Show/hide delivery method settings
-    $('#delivery_method').on('change', function() {
-        const method = $(this).val();
-        
-        if (method === 'email') {
-            $('.email-settings').show();
-            $('.ftp-settings').hide();
-        } else if (method === 'ftp') {
-            $('.email-settings').hide();
-            $('.ftp-settings').show();
-        }
-    }).trigger('change');
-   
-    
-     // Column selection quick actions
-    $('#select-all-columns').on('click', function() {
-        $('.wcat-columns-grid input[type="checkbox"]').prop('checked', true);
-    });
-    
-    $('#deselect-all-columns').on('click', function() {
-        $('.wcat-columns-grid input[type="checkbox"]').prop('checked', false);
-    });
-    
-    $('#select-default-columns').on('click', function() {
-        $('.wcat-columns-grid input[type="checkbox"]').each(function() {
-            $(this).prop('checked', $(this).data('default') === 'yes');
+
+        $('#deselect-all-columns').on('click', function () {
+            $('.wcat-columns-grid input[type="checkbox"]').prop('checked', false);
         });
+
+        $('#select-default-columns').on('click', function () {
+            $('.wcat-columns-grid input[type="checkbox"]').each(function () {
+                $(this).prop('checked', $(this).data('default') === 'yes');
+            });
+        });
+
     });
-    
-});
 </script>

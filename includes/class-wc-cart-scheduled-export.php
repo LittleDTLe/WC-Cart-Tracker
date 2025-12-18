@@ -123,6 +123,9 @@ class WC_Cart_Tracker_Scheduled_Export
             case 'delete':
                 $this->delete_schedule();
                 break;
+            case 'test_email':
+                $this->send_diagnostic_email();
+                break;
         }
     }
 
@@ -280,49 +283,79 @@ class WC_Cart_Tracker_Scheduled_Export
      */
     public function run_scheduled_export($schedule_id)
     {
-        error_log('WC Cart Tracker: Running scheduled export - ' . $schedule_id);
+        error_log('=== WC Cart Tracker: Starting scheduled export ===');
+        error_log('Schedule ID: ' . $schedule_id);
 
         $schedules = get_option('wcat_export_schedules', array());
 
         if (!isset($schedules[$schedule_id])) {
-            error_log('WC Cart Tracker: Schedule not found - ' . $schedule_id);
+            error_log('ERROR: Schedule not found - ' . $schedule_id);
             return;
         }
 
         $schedule = $schedules[$schedule_id];
+        error_log('Schedule Name: ' . $schedule['name']);
 
         // Check if enabled
         if ($schedule['enabled'] !== 'yes') {
-            error_log('WC Cart Tracker: Schedule disabled - ' . $schedule_id);
+            error_log('SKIPPED: Schedule is disabled');
             return;
         }
 
         // Generate export
+        error_log('Generating export file...');
         $file_path = $this->generate_export_file($schedule);
 
         if (is_wp_error($file_path)) {
-            error_log('WC Cart Tracker: Export generation failed - ' . $file_path->get_error_message());
+            error_log('ERROR: Export generation failed - ' . $file_path->get_error_message());
+            $this->log_export_failure($schedule_id, 'generation_failed', $file_path->get_error_message());
+            return;
+        }
+
+        // Verify file exists and has content
+        if (!file_exists($file_path)) {
+            error_log('ERROR: Export file does not exist at: ' . $file_path);
+            $this->log_export_failure($schedule_id, 'file_missing', 'Generated file not found');
+            return;
+        }
+
+        $file_size = filesize($file_path);
+        error_log('Export file created: ' . $file_path . ' (Size: ' . $file_size . ' bytes)');
+
+        if ($file_size === 0) {
+            error_log('ERROR: Export file is empty');
+            $this->log_export_failure($schedule_id, 'file_empty', 'Generated file has no content');
+            unlink($file_path);
             return;
         }
 
         // Deliver export
+        error_log('Attempting delivery via: ' . $schedule['delivery_method']);
         $result = $this->deliver_export($schedule, $file_path);
 
         // Update last run time
         $schedules[$schedule_id]['last_run'] = current_time('mysql');
         $schedules[$schedule_id]['next_run'] = date('Y-m-d H:i:s', $this->calculate_next_run($schedule['frequency']));
+
+        if (is_wp_error($result)) {
+            $schedules[$schedule_id]['last_error'] = $result->get_error_message();
+            $schedules[$schedule_id]['last_status'] = 'failed';
+            error_log('ERROR: Export delivery failed - ' . $result->get_error_message());
+        } else {
+            $schedules[$schedule_id]['last_error'] = '';
+            $schedules[$schedule_id]['last_status'] = 'success';
+            error_log('SUCCESS: Scheduled export completed successfully');
+        }
+
         update_option('wcat_export_schedules', $schedules);
 
         // Clean up temp file
         if (file_exists($file_path)) {
             unlink($file_path);
+            error_log('Temp file cleaned up');
         }
 
-        if (is_wp_error($result)) {
-            error_log('WC Cart Tracker: Export delivery failed - ' . $result->get_error_message());
-        } else {
-            error_log('WC Cart Tracker: Scheduled export completed - ' . $schedule_id);
-        }
+        error_log('=== WC Cart Tracker: Export process complete ===');
     }
 
     /**
@@ -430,10 +463,32 @@ class WC_Cart_Tracker_Scheduled_Export
      */
     private function deliver_via_email($schedule, $file_path)
     {
+        error_log('--- Email Delivery Process ---');
+
+        // Validate file
+        if (!file_exists($file_path)) {
+            error_log('ERROR: File does not exist: ' . $file_path);
+            return new WP_Error('file_missing', __('Export file not found', 'wc-all-cart-tracker'));
+        }
+
+        $file_size = filesize($file_path);
+        error_log('File to attach: ' . basename($file_path) . ' (' . $file_size . ' bytes)');
+
+        // Parse recipients
         $recipients = explode("\n", $schedule['email_recipients']);
         $recipients = array_map('trim', $recipients);
         $recipients = array_filter($recipients);
+        $recipients = array_filter($recipients, 'is_email'); // Validate all emails
 
+        if (empty($recipients)) {
+            error_log('ERROR: No valid email recipients found');
+            error_log('Raw recipients: ' . $schedule['email_recipients']);
+            return new WP_Error('no_recipients', __('No valid email recipients', 'wc-all-cart-tracker'));
+        }
+
+        error_log('Valid recipients: ' . implode(', ', $recipients));
+
+        // Build email
         $subject = sprintf(
             __('[%s] Scheduled Cart Export - %s', 'wc-all-cart-tracker'),
             get_bloginfo('name'),
@@ -441,20 +496,54 @@ class WC_Cart_Tracker_Scheduled_Export
         );
 
         $message = sprintf(
-            __('Hello,%1$s%1$sPlease find attached the scheduled cart export "%2$s".%1$s%1$sExport Details:%1$s- Type: %3$s%1$s- Format: %4$s%1$s- Generated: %5$s%1$s%1$sThis is an automated email from WC All Cart Tracker.', 'wc-all-cart-tracker'),
+            __('Hello,%1$s%1$sPlease find attached the scheduled cart export "%2$s".%1$s%1$sExport Details:%1$s- Type: %3$s%1$s- Format: %4$s%1$s- Generated: %5$s%1$s- File Size: %6$s%1$s%1$sThis is an automated email from WC All Cart Tracker.', 'wc-all-cart-tracker'),
             "\r\n",
             $schedule['name'],
             ucfirst(str_replace('_', ' ', $schedule['export_type'])),
             strtoupper($schedule['export_format']),
-            current_time('F j, Y g:i A')
+            current_time('F j, Y g:i A'),
+            size_format($file_size)
         );
 
-        $headers = array('Content-Type: text/plain; charset=UTF-8');
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
+        );
+
         $attachments = array($file_path);
 
+        error_log('Subject: ' . $subject);
+        error_log('Message length: ' . strlen($message) . ' characters');
+        error_log('Headers: ' . print_r($headers, true));
+        error_log('Attachments: ' . print_r($attachments, true));
+
+        // Enable detailed error logging for wp_mail
+        add_action('wp_mail_failed', function ($error) {
+            error_log('WP_MAIL ERROR: ' . $error->get_error_message());
+        });
+
+        // Send email
+        error_log('Calling wp_mail()...');
         $result = wp_mail($recipients, $subject, $message, $headers, $attachments);
 
-        return $result ? true : new WP_Error('email_failed', __('Failed to send email', 'wc-all-cart-tracker'));
+        if ($result) {
+            error_log('SUCCESS: wp_mail() returned true');
+            error_log('Email sent to: ' . implode(', ', $recipients));
+            return true;
+        } else {
+            error_log('FAILURE: wp_mail() returned false');
+
+            // Check if there's a global PHPMailer error
+            global $phpmailer;
+            if (isset($phpmailer)) {
+                error_log('PHPMailer ErrorInfo: ' . $phpmailer->ErrorInfo);
+            }
+
+            return new WP_Error(
+                'email_failed',
+                __('Failed to send email. Check error logs for details.', 'wc-all-cart-tracker')
+            );
+        }
     }
 
     /**
@@ -511,12 +600,28 @@ class WC_Cart_Tracker_Scheduled_Export
             wp_send_json_error(array('message' => __('Invalid schedule ID', 'wc-all-cart-tracker')));
         }
 
+        error_log('=== MANUAL TEST EXPORT TRIGGERED ===');
+        error_log('Schedule ID: ' . $schedule_id);
+        error_log('Triggered by user: ' . get_current_user_id());
+
         // Run the export
         $this->run_scheduled_export($schedule_id);
 
-        wp_send_json_success(array('message' => __('Test export completed', 'wc-all-cart-tracker')));
-    }
+        // Check if it succeeded
+        $schedules = get_option('wcat_export_schedules', array());
+        $last_status = isset($schedules[$schedule_id]['last_status']) ? $schedules[$schedule_id]['last_status'] : 'unknown';
+        $last_error = isset($schedules[$schedule_id]['last_error']) ? $schedules[$schedule_id]['last_error'] : '';
 
+        if ($last_status === 'success') {
+            wp_send_json_success(array(
+                'message' => __('Test export sent successfully! Check your email.', 'wc-all-cart-tracker')
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => __('Test export failed. Error: ', 'wc-all-cart-tracker') . $last_error . ' ' . __('Check debug.log for details.', 'wc-all-cart-tracker')
+            ));
+        }
+    }
     /**
      * AJAX: Delete schedule
      */
@@ -551,6 +656,31 @@ class WC_Cart_Tracker_Scheduled_Export
     }
 
     /**
+     * Log export failure for debugging
+     */
+    private function log_export_failure($schedule_id, $failure_type, $message)
+    {
+        $failures = get_option('wcat_export_failures', array());
+
+        if (!isset($failures[$schedule_id])) {
+            $failures[$schedule_id] = array();
+        }
+
+        $failures[$schedule_id][] = array(
+            'time' => current_time('mysql'),
+            'type' => $failure_type,
+            'message' => $message
+        );
+
+        // Keep only last 10 failures per schedule
+        if (count($failures[$schedule_id]) > 10) {
+            $failures[$schedule_id] = array_slice($failures[$schedule_id], -10);
+        }
+
+        update_option('wcat_export_failures', $failures);
+    }
+
+    /**
      * Render scheduled exports admin page
      */
     public function render_scheduled_exports_page()
@@ -573,6 +703,91 @@ class WC_Cart_Tracker_Scheduled_Export
     {
         $schedules = self::get_schedules();
         return isset($schedules[$schedule_id]) ? $schedules[$schedule_id] : null;
+    }
+
+    private function send_diagnostic_email()
+    {
+        if (!isset($_POST['test_email_recipient']) || !current_user_can('manage_woocommerce')) {
+            return;
+        }
+
+        check_admin_referer('wcat_test_email');
+
+        $recipient = sanitize_email($_POST['test_email_recipient']);
+
+        if (!is_email($recipient)) {
+            add_settings_error(
+                'wcat_scheduled_exports',
+                'invalid_email',
+                __('Invalid email address', 'wc-all-cart-tracker'),
+                'error'
+            );
+            return;
+        }
+
+        error_log('=== EMAIL DIAGNOSTIC TEST ===');
+        error_log('Recipient: ' . $recipient);
+        error_log('Triggered by: User ID ' . get_current_user_id());
+
+        $subject = '[' . get_bloginfo('name') . '] ' . __('Cart Tracker Email Test', 'wc-all-cart-tracker');
+
+        $message = __('Hello,', 'wc-all-cart-tracker') . "\r\n\r\n";
+        $message .= __('This is a test email from WC All Cart Tracker.', 'wc-all-cart-tracker') . "\r\n\r\n";
+        $message .= __('If you received this email, your email configuration is working correctly!', 'wc-all-cart-tracker') . "\r\n\r\n";
+        $message .= __('Configuration Details:', 'wc-all-cart-tracker') . "\r\n";
+        $message .= '- ' . __('Site:', 'wc-all-cart-tracker') . ' ' . get_bloginfo('name') . "\r\n";
+        $message .= '- ' . __('Admin Email:', 'wc-all-cart-tracker') . ' ' . get_option('admin_email') . "\r\n";
+        $message .= '- ' . __('PHP Version:', 'wc-all-cart-tracker') . ' ' . PHP_VERSION . "\r\n";
+        $message .= '- ' . __('WordPress Version:', 'wc-all-cart-tracker') . ' ' . get_bloginfo('version') . "\r\n";
+        $message .= '- ' . __('Test Time:', 'wc-all-cart-tracker') . ' ' . current_time('F j, Y g:i:s A') . "\r\n\r\n";
+        $message .= __('WC All Cart Tracker - Scheduled Exports', 'wc-all-cart-tracker');
+
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
+        );
+
+        error_log('Sending diagnostic email...');
+        error_log('Subject: ' . $subject);
+        error_log('Recipient: ' . $recipient);
+
+        // Track errors
+        add_action('wp_mail_failed', function ($error) {
+            error_log('DIAGNOSTIC EMAIL ERROR: ' . $error->get_error_message());
+        });
+
+        $result = wp_mail($recipient, $subject, $message, $headers);
+
+        if ($result) {
+            error_log('SUCCESS: Diagnostic email sent');
+            add_settings_error(
+                'wcat_scheduled_exports',
+                'test_email_success',
+                sprintf(
+                    __('✓ Test email sent successfully to %s. Check your inbox (and spam folder).', 'wc-all-cart-tracker'),
+                    $recipient
+                ),
+                'success'
+            );
+        } else {
+            error_log('FAILURE: Diagnostic email failed');
+
+            global $phpmailer;
+            $error_details = '';
+            if (isset($phpmailer)) {
+                $error_details = ' Error: ' . $phpmailer->ErrorInfo;
+                error_log('PHPMailer Error: ' . $phpmailer->ErrorInfo);
+            }
+
+            add_settings_error(
+                'wcat_scheduled_exports',
+                'test_email_failed',
+                __('✗ Failed to send test email.', 'wc-all-cart-tracker') . $error_details . ' ' . __('Check debug.log for details.', 'wc-all-cart-tracker'),
+                'error'
+            );
+        }
+
+        error_log('=== END EMAIL DIAGNOSTIC TEST ===');
     }
 }
 
