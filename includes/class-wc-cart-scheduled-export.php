@@ -14,6 +14,7 @@
  * @package WC_All_Cart_Tracker
  */
 
+
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -48,9 +49,6 @@ class WC_Cart_Tracker_Scheduled_Export
         add_action('wp_ajax_wcat_delete_schedule', array($this, 'ajax_delete_schedule'));
     }
 
-    /**
-     * Add custom cron schedules
-     */
     public function add_custom_cron_schedules($schedules)
     {
         $schedules['weekly'] = array(
@@ -66,72 +64,49 @@ class WC_Cart_Tracker_Scheduled_Export
         return $schedules;
     }
 
-    /**
-     * Enqueue admin assets
-     */
-    // public function enqueue_admin_assets($hook)
-    // {
-    //     if ('woocommerce_page_wc-cart-scheduled-exports' !== $hook) {
-    //         return;
-    //     }
-
-    //     wp_enqueue_style(
-    //         'wc-cart-tracker-scheduled-exports',
-    //         WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/scheduled-exports.css',
-    //         array(),
-    //         WC_CART_TRACKER_VERSION
-    //     );
-
-    //     wp_enqueue_script(
-    //         'wc-cart-tracker-scheduled-exports',
-    //         WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/scheduled-exports.js',
-    //         array('jquery'),
-    //         WC_CART_TRACKER_VERSION,
-    //         true
-    //     );
-
-    //     wp_localize_script('wc-cart-tracker-scheduled-exports', 'wcatScheduledExport', array(
-    //         'ajaxUrl' => admin_url('admin-ajax.php'),
-    //         'nonce' => wp_create_nonce('wcat_scheduled_export'),
-    //         'strings' => array(
-    //             'confirm_delete' => __('Are you sure you want to delete this schedule?', 'wc-all-cart-tracker'),
-    //             'testing' => __('Testing...', 'wc-all-cart-tracker'),
-    //             'test_success' => __('Test export sent successfully!', 'wc-all-cart-tracker'),
-    //             'test_failed' => __('Test export failed. Check the logs.', 'wc-all-cart-tracker'),
-    //         )
-    //     ));
-    // }
-
-    /**
-     * Handle schedule actions (create, update, delete)
-     */
     public function handle_schedule_actions()
     {
-        if (!isset($_POST['wcat_schedule_action']) || !current_user_can('manage_woocommerce')) {
+        if (!current_user_can('manage_woocommerce')) {
             return;
         }
 
-        check_admin_referer('wcat_schedule_action');
+        // Handle schedule create/update/delete
+        if (isset($_POST['wcat_schedule_action'])) {
+            // Verify nonce
+            if (
+                !isset($_POST['wcat_schedule_nonce']) ||
+                !wp_verify_nonce($_POST['wcat_schedule_nonce'], 'wcat_schedule_action')
+            ) {
+                wp_die(__('Security check failed', 'wc-all-cart-tracker'));
+            }
 
-        $action = sanitize_text_field($_POST['wcat_schedule_action']);
+            $action = sanitize_text_field($_POST['wcat_schedule_action']);
 
-        switch ($action) {
-            case 'create':
-            case 'update':
-                $this->save_schedule();
-                break;
-            case 'delete':
-                $this->delete_schedule();
-                break;
-            case 'test_email':
-                $this->send_diagnostic_email();
-                break;
+            switch ($action) {
+                case 'create':
+                case 'update':
+                    $this->save_schedule();
+                    break;
+                case 'delete':
+                    $this->delete_schedule();
+                    break;
+            }
+            return;
+        }
+
+        // Handle test email (separate nonce)
+        if (isset($_POST['wcat_action']) && $_POST['wcat_action'] === 'test_email') {
+            if (
+                !isset($_POST['wcat_test_email_nonce']) ||
+                !wp_verify_nonce($_POST['wcat_test_email_nonce'], 'wcat_test_email')
+            ) {
+                wp_die(__('Security check failed', 'wc-all-cart-tracker'));
+            }
+            $this->send_diagnostic_email();
+            return;
         }
     }
 
-    /**
-     * Save or update schedule
-     */
     private function save_schedule()
     {
         $schedule_id = isset($_POST['schedule_id']) ? sanitize_text_field($_POST['schedule_id']) : '';
@@ -144,6 +119,12 @@ class WC_Cart_Tracker_Scheduled_Export
         $columns = isset($_POST['columns']) ? array_map('sanitize_text_field', (array) $_POST['columns']) : array();
         $filters = isset($_POST['filters']) ? array_map('sanitize_text_field', (array) $_POST['filters']) : array();
         $enabled = isset($_POST['enabled']) ? sanitize_text_field($_POST['enabled']) : 'yes';
+
+        // Additional FTP fields
+        $ftp_host = isset($_POST['ftp_host']) ? sanitize_text_field($_POST['ftp_host']) : '';
+        $ftp_user = isset($_POST['ftp_user']) ? sanitize_text_field($_POST['ftp_user']) : '';
+        $ftp_pass = isset($_POST['ftp_pass']) ? $_POST['ftp_pass'] : ''; // Don't sanitize password
+        $ftp_path = isset($_POST['ftp_path']) ? sanitize_text_field($_POST['ftp_path']) : '/';
 
         // Validate
         if (empty($schedule_name)) {
@@ -164,10 +145,13 @@ class WC_Cart_Tracker_Scheduled_Export
             'frequency' => $frequency,
             'delivery_method' => $delivery_method,
             'email_recipients' => $email_recipients,
+            'ftp_host' => $ftp_host,
+            'ftp_user' => $ftp_user,
+            'ftp_pass' => $ftp_pass,
+            'ftp_path' => $ftp_path,
             'columns' => $columns,
             'filters' => $filters,
             'enabled' => $enabled,
-            'created' => current_time('mysql'),
             'last_run' => null,
             'next_run' => null,
         );
@@ -180,7 +164,7 @@ class WC_Cart_Tracker_Scheduled_Export
             $schedule_id = 'schedule_' . time();
             $schedule_data['created'] = current_time('mysql');
         } else {
-            // Update existing schedule
+            // Update existing - preserve creation date and last_run
             if (isset($schedules[$schedule_id]['created'])) {
                 $schedule_data['created'] = $schedules[$schedule_id]['created'];
             }
@@ -192,8 +176,22 @@ class WC_Cart_Tracker_Scheduled_Export
         $schedules[$schedule_id] = $schedule_data;
         update_option('wcat_export_schedules', $schedules);
 
-        // Schedule cron job
+        // Schedule cron job - CRITICAL
         $this->schedule_cron_job($schedule_id, $frequency);
+
+        // Update next_run time in the schedule data
+        $next_timestamp = wp_next_scheduled('wcat_scheduled_export_' . $frequency, array($schedule_id));
+        if ($next_timestamp) {
+            $schedules[$schedule_id]['next_run'] = date('Y-m-d H:i:s', $next_timestamp);
+        } else {
+            error_log('WARNING: Cron job not found after scheduling!');
+            $schedules[$schedule_id]['next_run'] = null;
+        }
+
+        // Save again with next_run updated
+        update_option('wcat_export_schedules', $schedules);
+
+        error_log('Schedule saved. Next run: ' . ($schedules[$schedule_id]['next_run'] ?? 'NOT SCHEDULED'));
 
         add_settings_error(
             'wcat_scheduled_exports',
@@ -203,39 +201,53 @@ class WC_Cart_Tracker_Scheduled_Export
         );
     }
 
-    /**
-     * Schedule cron job
-     */
     private function schedule_cron_job($schedule_id, $frequency)
     {
+        error_log('=== SCHEDULING CRON JOB ===');
+        error_log('Schedule ID: ' . $schedule_id);
+        error_log('Frequency: ' . $frequency);
+
         $hook = 'wcat_scheduled_export_' . $frequency;
 
-        // Clear existing schedule
-        wp_clear_scheduled_hook($hook, array($schedule_id));
-
-        // Schedule new job
-        if (!wp_next_scheduled($hook, array($schedule_id))) {
-            $timestamp = $this->calculate_next_run($frequency);
-            wp_schedule_event($timestamp, $frequency, $hook, array($schedule_id));
+        // Clear any existing schedule for this hook and schedule_id
+        $timestamp = wp_next_scheduled($hook, array($schedule_id));
+        if ($timestamp) {
+            error_log('Clearing existing schedule at: ' . date('Y-m-d H:i:s', $timestamp));
+            wp_unschedule_event($timestamp, $hook, array($schedule_id));
         }
+
+        // Calculate next run time
+        $next_timestamp = $this->calculate_next_run($frequency);
+        error_log('Next run scheduled for: ' . date('Y-m-d H:i:s', $next_timestamp));
+
+        // Schedule the event
+        $result = wp_schedule_event($next_timestamp, $frequency, $hook, array($schedule_id));
+
+        if ($result === false) {
+            error_log('ERROR: Failed to schedule cron event');
+        } else {
+            // Verify it was scheduled
+            $verify = wp_next_scheduled($hook, array($schedule_id));
+            if ($verify) {
+                error_log('SUCCESS: Cron scheduled and verified at: ' . date('Y-m-d H:i:s', $verify));
+            } else {
+                error_log('ERROR: Cron not found after scheduling');
+            }
+        }
+
+        error_log('=== END SCHEDULING ===');
     }
 
-    /**
-     * Calculate next run time based on frequency
-     */
     private function calculate_next_run($frequency)
     {
         switch ($frequency) {
             case 'daily':
-                // Run at 2 AM daily
                 $next = strtotime('tomorrow 2:00am');
                 break;
             case 'weekly':
-                // Run at 2 AM every Monday
                 $next = strtotime('next monday 2:00am');
                 break;
             case 'monthly':
-                // Run at 2 AM on the 1st of next month
                 $next = strtotime('first day of next month 2:00am');
                 break;
             default:
@@ -269,6 +281,23 @@ class WC_Cart_Tracker_Scheduled_Export
             unset($schedules[$schedule_id]);
             update_option('wcat_export_schedules', $schedules);
 
+            // Schedule cron job - CRITICAL
+            $this->schedule_cron_job($schedule_id, $frequency);
+
+            // Update next_run time in the schedule data
+            $next_timestamp = wp_next_scheduled('wcat_scheduled_export_' . $frequency, array($schedule_id));
+            if ($next_timestamp) {
+                $schedules[$schedule_id]['next_run'] = date('Y-m-d H:i:s', $next_timestamp);
+            } else {
+                error_log('WARNING: Cron job not found after scheduling!');
+                $schedules[$schedule_id]['next_run'] = null;
+            }
+
+            // Save again with next_run updated
+            update_option('wcat_export_schedules', $schedules);
+
+            error_log('Schedule saved. Next run: ' . ($schedules[$schedule_id]['next_run'] ?? 'NOT SCHEDULED'));
+
             add_settings_error(
                 'wcat_scheduled_exports',
                 'schedule_deleted',
@@ -296,13 +325,11 @@ class WC_Cart_Tracker_Scheduled_Export
         $schedule = $schedules[$schedule_id];
         error_log('Schedule Name: ' . $schedule['name']);
 
-        // Check if enabled
         if ($schedule['enabled'] !== 'yes') {
             error_log('SKIPPED: Schedule is disabled');
             return;
         }
 
-        // Generate export
         error_log('Generating export file...');
         $file_path = $this->generate_export_file($schedule);
 
@@ -312,7 +339,6 @@ class WC_Cart_Tracker_Scheduled_Export
             return;
         }
 
-        // Verify file exists and has content
         if (!file_exists($file_path)) {
             error_log('ERROR: Export file does not exist at: ' . $file_path);
             $this->log_export_failure($schedule_id, 'file_missing', 'Generated file not found');
@@ -329,11 +355,9 @@ class WC_Cart_Tracker_Scheduled_Export
             return;
         }
 
-        // Deliver export
         error_log('Attempting delivery via: ' . $schedule['delivery_method']);
         $result = $this->deliver_export($schedule, $file_path);
 
-        // Update last run time
         $schedules[$schedule_id]['last_run'] = current_time('mysql');
         $schedules[$schedule_id]['next_run'] = date('Y-m-d H:i:s', $this->calculate_next_run($schedule['frequency']));
 
@@ -349,7 +373,6 @@ class WC_Cart_Tracker_Scheduled_Export
 
         update_option('wcat_export_schedules', $schedules);
 
-        // Clean up temp file
         if (file_exists($file_path)) {
             unlink($file_path);
             error_log('Temp file cleaned up');

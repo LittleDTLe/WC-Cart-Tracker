@@ -61,7 +61,13 @@ class WC_Cart_Tracker_Admin
     public function enqueue_admin_assets($hook)
     {
         // Only on cart tracker pages
-        if ('woocommerce_page_wc-all-cart-tracker' !== $hook && 'woocommerce_page_wc-cart-history' !== $hook) {
+        if (
+            !in_array($hook, array(
+                'woocommerce_page_wc-all-cart-tracker',
+                'woocommerce_page_wc-cart-history',
+                'woocommerce_page_wc-cart-scheduled-exports'
+            ))
+        ) {
             return;
         }
 
@@ -101,55 +107,58 @@ class WC_Cart_Tracker_Admin
             true
         );
 
-        // Enqueue Scripts for Scheduled Exports Page
-        wp_enqueue_style(
-            'wc-cart-tracker-scheduled-exports',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/scheduled-exports.css',
-            array(),
-            WC_CART_TRACKER_VERSION
-        );
+        // Enqueue Scheduled Exports JS on the right page
+        if ($hook === 'woocommerce_page_wc-cart-scheduled-exports') {
+            wp_enqueue_style(
+                'wc-cart-tracker-scheduled-exports',
+                WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/css/scheduled-exports.css',
+                array(),
+                WC_CART_TRACKER_VERSION
+            );
 
-        // Enqueue Styles for Scheduled Exports Page
-        wp_enqueue_script(
-            'wc-cart-tracker-scheduled-exports',
-            WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/scheduled-exports.js',
-            array('jquery'),
-            WC_CART_TRACKER_VERSION,
-            true
-        );
+            wp_enqueue_script(
+                'wc-cart-tracker-scheduled-exports',
+                WC_CART_TRACKER_PLUGIN_URL . 'admin/assets/js/scheduled-exports.js',
+                array('jquery'),
+                WC_CART_TRACKER_VERSION,
+                true
+            );
 
-        // Localize script for main admin functionality
-        wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wcat_ajax_nonce'),
-            'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
-            'auto_refresh' => array(
-                'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
-                'interval' => 306000,
-            ),
-            'dashboard_url' => admin_url('admin.php?page=wc-all-cart-tracker')
-        ));
+            // Localize script for Scheduled Exports
+            wp_localize_script('wc-cart-tracker-scheduled-exports', 'wcatScheduledExport', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wcat_scheduled_export'),
+                'strings' => array(
+                    'confirm_delete' => __('Are you sure you want to delete this schedule?', 'wc-all-cart-tracker'),
+                    'testing' => __('Testing...', 'wc-all-cart-tracker'),
+                    'test_success' => __('Test export sent successfully!', 'wc-all-cart-tracker'),
+                    'test_failed' => __('Test export failed. Check the logs.', 'wc-all-cart-tracker'),
+                )
+            ));
+        }
 
-        // Localize script for export modal
-        wp_localize_script('wc-cart-tracker-export-modal', 'wcatExport', array(
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'adminUrl' => admin_url('admin.php'),
-            'nonce' => wp_create_nonce('wcat_export_ajax'),
-            'exportNonce' => wp_create_nonce('wcat_export_nonce'),
-        ));
+        // Localize script for main admin functionality (dashboard/history)
+        if (in_array($hook, array('woocommerce_page_wc-all-cart-tracker', 'woocommerce_page_wc-cart-history'))) {
+            wp_localize_script('wc-cart-tracker-admin', 'wcat_ajax', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wcat_ajax_nonce'),
+                'days' => isset($_GET['days']) ? absint($_GET['days']) : 30,
+                'auto_refresh' => array(
+                    'enabled' => get_option('wcat_auto_refresh_enabled', 'no'),
+                    'interval' => 306000,
+                ),
+                'dashboard_url' => admin_url('admin.php?page=wc-all-cart-tracker')
+            ));
 
-        // Localisze script for Scheduled Exports
-        wp_localize_script('wc-cart-tracker-scheduled-exports', 'wcatScheduledExport', array(
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wcat_scheduled_export'),
-            'strings' => array(
-                'confirm_delete' => __('Are you sure you want to delete this schedule?', 'wc-all-cart-tracker'),
-                'testing' => __('Testing...', 'wc-all-cart-tracker'),
-                'test_success' => __('Test export sent successfully!', 'wc-all-cart-tracker'),
-                'test_failed' => __('Test export failed. Check the logs.', 'wc-all-cart-tracker'),
-            )
-        ));
+            wp_localize_script('wc-cart-tracker-export-modal', 'wcatExport', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'adminUrl' => admin_url('admin.php'),
+                'nonce' => wp_create_nonce('wcat_export_ajax'),
+                'exportNonce' => wp_create_nonce('wcat_export_nonce'),
+            ));
+        }
     }
+
 
     public function render_dashboard_page()
     {
