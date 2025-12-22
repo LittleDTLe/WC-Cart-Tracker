@@ -498,15 +498,6 @@ $available_columns = WC_Cart_Tracker_Export_Templates::get_available_columns();
         </div>
 
     </div>
-    <?php
-    /**
-     * Add this to the Scheduled Exports admin page
-     * Place it in a new section for debugging
-     */
-
-    // Add to admin/views/admin-scheduled-exports.php before closing </div>
-    ?>
-
     <!-- Email Diagnostic Section -->
     <div class="postbox wcat-diagnostic-card" style="margin-top: 20px;">
         <div class="postbox-header">
