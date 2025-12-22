@@ -1211,16 +1211,6 @@ If this plugin helps your WooCommerce store, please consider:
 
 ---
 
-## 📈 Statistics
-
-- **Total Installs:** Growing
-- **Active Installations:** Increasing
-- **Average Rating:** ⭐⭐⭐⭐⭐
-- **Support Threads:** Active and responsive
-- **Last Updated:** Regularly maintained
-
----
-
 ## 🔗 Useful Links
 
 - **GitHub Repository:** [https://github.com/LittleDTLe/WC-Cart-Tracker](https://github.com/LittleDTLe/WC-Cart-Tracker)
