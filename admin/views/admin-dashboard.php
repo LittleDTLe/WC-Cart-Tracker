@@ -85,14 +85,57 @@ $carts = $wpdb->get_results($wpdb->prepare(
     $offset
 ));
 // --- End Data Retrieval ---
+$export_filters = array(
+    'page' => 'wc-all-cart-tracker',
+    'days' => $days,
+);
+
+if ($using_custom_range) {
+    $export_filters['date_from'] = $date_from;
+    $export_filters['date_to'] = $date_to;
+}
+
+// Render export buttons that trigger the modal
+WC_Cart_Tracker_Export::render_export_buttons('dashboard', $export_filters);
+
 
 ?>
 <div class="wrap">
     <h1><?php echo esc_html__('Active Carts', 'wc-all-cart-tracker'); ?></h1>
 
-    <div class="tablenav top" style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
-        <button id="wcat-manual-refresh"
+    <div class="tablenav top" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <div class="tablenav top" style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+            <button id="wcat-manual-refresh"
             class="button button-secondary"><?php esc_html_e('Refresh Data', 'wc-all-cart-tracker'); ?></button>
+        </div>
+            <!-- <div class="wcat-export-dropdown" style="position: relative; display: inline-block;">
+                <button class="button button-secondary wcat-export-trigger" type="button">
+                    <?php esc_html_e('Export Cart Data', 'wc-all-cart-tracker'); ?> ▾
+                </button>
+                <div class="wcat-export-menu"
+                    style="display: none; position: absolute; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; margin-top: 5px;">
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('wcat_export' => 'active_carts', 'format' => 'csv', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to)), 'wcat_export_nonce')); ?>"
+                        class="wcat-export-option"
+                        style="display: block; padding: 10px 15px; text-decoration: none; color: #2271b1; border-bottom: 1px solid #f0f0f1;">
+                        <span class="dashicons dashicons-media-spreadsheet" style="margin-right: 5px;"></span>
+                        <?php esc_html_e('Export as CSV', 'wc-all-cart-tracker'); ?>
+                    </a>
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('wcat_export' => 'active_carts', 'format' => 'excel', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to)), 'wcat_export_nonce')); ?>"
+                        class="wcat-export-option"
+                        style="display: block; padding: 10px 15px; text-decoration: none; color: #2271b1; border-bottom: 1px solid #f0f0f1;">
+                        <span class="dashicons dashicons-media-document" style="margin-right: 5px;"></span>
+                        <?php esc_html_e('Export as Excel', 'wc-all-cart-tracker'); ?>
+                    </a>
+                    <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('wcat_export' => 'active_carts', 'format' => 'google_sheets', 'days' => $days, 'date_from' => $date_from, 'date_to' => $date_to)), 'wcat_export_nonce')); ?>"
+                        class="wcat-export-option"
+                        style="display: block; padding: 10px 15px; text-decoration: none; color: #2271b1;">
+                        <span class="dashicons dashicons-cloud" style="margin-right: 5px;"></span>
+                        <?php esc_html_e('Export for Google Sheets', 'wc-all-cart-tracker'); ?>
+                    </a>
+                </div>
+            </div> -->
+        </div>
     </div>
 
     <div class="wc-cart-analytics-dashboard">
@@ -255,7 +298,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                     <span
-                        style="color: #646970;"><?php echo esc_html__('Active Carts:', 'wc-all-cart-tracker'); ?></span>
+                        style="color: #646970;"><?php echo esc_html__('Weekly Carts:', 'wc-all-cart-tracker'); ?></span>
                     <strong class="wcat-value" data-key="avg_active_cart_html">
                         <?php echo wc_price($analytics['avg_active_cart']); ?>
                     </strong>
@@ -407,7 +450,7 @@ $carts = $wpdb->get_results($wpdb->prepare(
 
     <h2><?php echo esc_html__('Active Carts', 'wc-all-cart-tracker'); ?></h2>
 
-    <div class="tablenav top">
+    <div class="tablenav top dashnav">
        <div class="alignleft actions">
     <span class="displaying-num">
         <?php

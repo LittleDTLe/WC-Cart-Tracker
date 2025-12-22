@@ -54,6 +54,21 @@ class WC_Cart_Tracker
         // Load analytics handler
         require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-analytics.php';
 
+        // Load sanitization class
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-data-sanitizer.php';
+
+        // Load export template system
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export-templates.php';
+
+        // Load export AJAX handler
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export-ajax.php';
+
+        // Load export handler
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-export.php';
+
+        // Load scheduled export handler
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-scheduled-export.php';
+
         // Load admin if in admin area
         if (is_admin()) {
             require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/class-wc-cart-admin.php';

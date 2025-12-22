@@ -42,17 +42,33 @@ jQuery(document).ready(function($) {
     
     // Update pagination display
     function updatePaginationDisplay(data) {
-        const totalItems = data.pagination.total_items;
+        const pagination = data.pagination;
+        const totalItems = pagination.total_items;
         
-        // Check if totalItems is 0
+        let displayText;
+        
         if (totalItems <= 0) {
-            $('.tablenav .displaying-num').text('No active carts');
-            return;
+            displayText = 'No active carts';
+        } else if (totalItems == 1) {
+            displayText = '1 active cart';
+        } else {
+            displayText = totalItems.toLocaleString() + ' active carts';
         }
-        const cartWord = totalItems === 1 ? 'cart' : 'carts';
-        const displayText = totalItems + ' active ' + cartWord;
         
-        $('.tablenav .displaying-num').text(displayText);
+        // Update all .displaying-num elements (in both top and bottom tablenav)
+        $('.dashnav .displaying-num').each(function() {
+            $(this).text(displayText);
+        });
+        
+        // Update pagination links if they exist
+        if (pagination.total_pages > 1) {
+            const currentPage = pagination.current_page;
+            const totalPages = pagination.total_pages;
+            
+            $('.tablenav-pages .paging-input').each(function() {
+                $(this).html('Page ' + currentPage.toLocaleString() + ' of ' + totalPages.toLocaleString());
+            });
+        }
     }
     
     // --- Stable Update Function (Used by AJAX) ---
@@ -109,6 +125,7 @@ jQuery(document).ready(function($) {
 
     // --- Core AJAX Logic ---
     function refreshDashboard(manual_bypass = false) {
+        // Disable button and update text
         refreshButton.prop('disabled', true).text('Refreshing...');
 
         const currentSortTh = $('table.wp-list-table th.sorted');
@@ -168,6 +185,8 @@ jQuery(document).ready(function($) {
                 }, 3000);
             },
             complete: function() {
+                // Always ensure button is re-enabled after AJAX completes
+                // This is a failsafe in case success/error handlers don't execute properly
                 setTimeout(function() {
                     if (refreshButton.prop('disabled')) {
                         refreshButton.prop('disabled', false).text('Refresh Data');
@@ -305,5 +324,28 @@ jQuery(document).ready(function($) {
         currentUrl.searchParams.set('per_page', perPage);
         currentUrl.searchParams.delete('paged'); // Reset to page 1
         window.location.href = currentUrl.toString();
+    });
+
+
+    // ==========================================================
+    // --- EXPORT DROPDOWN FUNCTIONALITY ---
+    // ==========================================================
+
+    // Toggle export dropdown
+    $('.wcat-export-trigger').on('click', function(e) {
+        e.stopPropagation();
+        $('.wcat-export-menu').toggle();
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.wcat-export-dropdown').length) {
+            $('.wcat-export-menu').hide();
+        }
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    $('.wcat-export-menu').on('click', function(e) {
+        e.stopPropagation();
     });
 });
