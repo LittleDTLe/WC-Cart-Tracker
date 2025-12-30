@@ -287,9 +287,78 @@ WC_Cart_Tracker_Export::render_export_buttons('dashboard', $export_filters);
                     <?php echo esc_html__('Total of active carts', 'wc-all-cart-tracker'); ?>
                 </div>
             </div>
-        </div>
 
-        <!-- Rest of the metrics cards remain the same -->
+            <!-- New State Breakdown Card -->
+            <div class="metric-card">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    <?php echo esc_html__('Cart State Breakdown', 'wc-all-cart-tracker'); ?>
+                    </h3>
+                
+                    <?php
+                    global $wpdb;
+                    $table_name = WC_Cart_Tracker_Database::get_table_name();
+
+                    // Get date_from based on current filter
+                    $days_for_breakdown = isset($_GET['days']) ? absint($_GET['days']) : 30;
+                    $date_from_breakdown = date('Y-m-d H:i:s', strtotime("-{$days_for_breakdown} days"));
+
+                    $state_counts = $wpdb->get_results($wpdb->prepare(
+                        "SELECT cart_status, COUNT(*) as count, SUM(cart_total) as value 
+                    FROM {$table_name} 
+                    WHERE last_updated >= %s 
+                    GROUP BY cart_status 
+                    ORDER BY FIELD(cart_status, 'active', 'recoverable', 'abandoned', 'cleared', 'converted', 'deleted')",
+                        $date_from_breakdown
+                    ));
+
+                    $state_colors = array(
+                        'active' => '#2271b1',
+                        'recoverable' => '#f0b849',
+                        'abandoned' => '#d63638',
+                        'cleared' => '#646970',
+                        'converted' => '#00a32a',
+                        'deleted' => '#dba617'
+                    );
+
+                    $state_labels = array(
+                        'active' => __('Active', 'wc-all-cart-tracker'),
+                        'recoverable' => __('Recoverable', 'wc-all-cart-tracker'),
+                        'abandoned' => __('Abandoned', 'wc-all-cart-tracker'),
+                        'cleared' => __('Cleared', 'wc-all-cart-tracker'),
+                        'converted' => __('Converted', 'wc-all-cart-tracker'),
+                        'deleted' => __('Deleted', 'wc-all-cart-tracker')
+                    );
+
+                    if (!empty($state_counts)):
+                        foreach ($state_counts as $state):
+                            $status = $state->cart_status;
+                            $count = intval($state->count);
+                            $value = floatval($state->value);
+                            $color = isset($state_colors[$status]) ? $state_colors[$status] : '#646970';
+                            $label = isset($state_labels[$status]) ? $state_labels[$status] : ucfirst($status);
+                            ?>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+                                <span style="display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                        style="display: inline-block; width: 12px; height: 12px; background: <?php echo esc_attr($color); ?>; border-radius: 2px;"></span>
+                                    <strong><?php echo esc_html($label); ?>:</strong>
+                                </span>
+                                <span>
+                                    <?php echo number_format($count); ?>
+                                    (<?php echo wc_price($value); ?>)
+                                </span>
+                            </div>
+                        <?php
+                        endforeach;
+                    else:
+                        ?>
+                        <p style="color: #646970; font-style: italic;">
+                            <?php echo esc_html__('No cart data for this period.', 'wc-all-cart-tracker'); ?>
+                        </p>
+                    <?php endif; ?>
+            </div>
+    </div>
+        
         <div class="wc-cart-metrics-detailed">
             <div class="metric-card">
                 <h3 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
