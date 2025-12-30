@@ -86,14 +86,15 @@ class WC_Cart_Tracker
         </div>
         <?php
     }
-    /**
-     * Schedule cart state updates (every 6 hours)
-     */
-    function wc_cart_tracker_schedule_state_updates()
-    {
-        if (!wp_next_scheduled('wc_cart_tracker_update_states')) {
-            wp_schedule_event(time(), 'sixhourly', 'wc_cart_tracker_update_states');
-        }
+}
+
+/**
+ * Schedule cart state updates (every 6 hours)
+ */
+function wc_cart_tracker_schedule_state_updates()
+{
+    if (!wp_next_scheduled('wc_cart_tracker_update_states')) {
+        wp_schedule_event(time(), 'sixhourly', 'wc_cart_tracker_update_states');
     }
 }
 add_action('wp', 'wc_cart_tracker_schedule_state_updates');
