@@ -212,8 +212,11 @@ class WC_Cart_Tracker_Database
         $cache_key = 'cart_' . ($user_id > 0 ? 'user_' . $user_id : 'session_' . md5($session_id));
         unset(self::$cache[$cache_key]);
 
+        // CRITICAL: Only 'active' carts have is_active = 1
+        $is_active = ($status === 'active') ? 1 : 0;
+
         $update_data = array(
-            'is_active' => 0,
+            'is_active' => $is_active,
             'cart_status' => $status
         );
 

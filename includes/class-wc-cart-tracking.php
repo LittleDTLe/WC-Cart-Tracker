@@ -1,6 +1,6 @@
 <?php
 /**
- * Cart Tracking Logic
+ * Enhanced Cart Tracking with Proper State Management
  *
  * @package WC_All_Cart_Tracker
  */
@@ -11,6 +11,10 @@ if (!defined('ABSPATH')) {
 
 class WC_Cart_Tracker_Tracking
 {
+    // Time thresholds (in hours)
+    const ACTIVE_THRESHOLD = 24;        // 24 hours
+    const RECOVERABLE_THRESHOLD = 168;  // 7 days  
+    const ABANDONED_THRESHOLD = 360;    // 15 days
 
     public function __construct()
     {
@@ -22,7 +26,6 @@ class WC_Cart_Tracker_Tracking
         add_action('woocommerce_add_to_cart', array($this, 'track_cart'), 10, 6);
         add_action('woocommerce_cart_item_removed', array($this, 'track_cart_update'), 10, 2);
         add_action('woocommerce_after_cart_item_quantity_update', array($this, 'track_cart_update'), 10, 4);
-        // add_action('woocommerce_cart_emptied', array($this, 'track_cart_update'));
         add_action('woocommerce_cart_emptied', array($this, 'handle_cart_emptied_status'), 10, 0);
         add_action('woocommerce_thankyou', array($this, 'mark_cart_converted'), 10, 1);
         add_action('woocommerce_order_status_completed', array($this, 'mark_cart_converted_by_user'), 10, 1);
@@ -93,6 +96,7 @@ class WC_Cart_Tracker_Tracking
 
         $past_purchases = $this->get_past_purchases_count($user_id);
 
+        // KEY CHANGE: Active carts have is_active = 1, status = 'active'
         $data = array(
             'session_id' => sanitize_text_field($session_id),
             'user_id' => absint($user_id),
@@ -102,8 +106,8 @@ class WC_Cart_Tracker_Tracking
             'customer_name' => sanitize_text_field($customer_name),
             'past_purchases' => absint($past_purchases),
             'last_updated' => current_time('mysql'),
-            'is_active' => 1,
-            'cart_status' => 'active',
+            'is_active' => 1,           // Only active carts have this as 1
+            'cart_status' => 'active',  // Will transition via cron
         );
 
         WC_Cart_Tracker_Database::save_cart($data);
@@ -148,6 +152,7 @@ class WC_Cart_Tracker_Tracking
         $user_id = $order->get_user_id();
         $session_id = $this->get_session_id();
 
+        // KEY CHANGE: Converted carts have is_active = 0
         WC_Cart_Tracker_Database::update_cart_status($session_id, $user_id, 'converted');
     }
 
@@ -164,7 +169,6 @@ class WC_Cart_Tracker_Tracking
 
     private function mark_cart_deleted()
     {
-
         if (is_admin() && isset($_GET['post']) && get_post_type($_GET['post']) === 'shop_order') {
             return;
         }
@@ -177,15 +181,14 @@ class WC_Cart_Tracker_Tracking
             return;
         }
 
-
         $session_id = $this->get_session_id();
         $user_id = get_current_user_id();
+
         WC_Cart_Tracker_Database::update_cart_status($session_id, $user_id, 'deleted');
     }
 
     public function handle_cart_emptied_status()
     {
-        // This function is only called when the cart is emptied.
         $this->mark_cart_deleted();
     }
 
@@ -228,5 +231,85 @@ class WC_Cart_Tracker_Tracking
                 array('%s', '%d')
             );
         }
+    }
+
+    /**
+     * Helper: Calculate cart state based on last_updated
+     */
+    public static function calculate_cart_state($last_updated, $current_status = null)
+    {
+        // Preserve converted/deleted status
+        if (in_array($current_status, array('converted', 'deleted'))) {
+            return array(
+                'status' => $current_status,
+                'is_active' => 0
+            );
+        }
+
+        $hours_old = (current_time('timestamp') - strtotime($last_updated)) / 3600;
+
+        if ($hours_old < self::ACTIVE_THRESHOLD) {
+            return array('status' => 'active', 'is_active' => 1);
+        } elseif ($hours_old < self::RECOVERABLE_THRESHOLD) {
+            return array('status' => 'recoverable', 'is_active' => 0);
+        } elseif ($hours_old < self::ABANDONED_THRESHOLD) {
+            return array('status' => 'abandoned', 'is_active' => 0);
+        } else {
+            return array('status' => 'cleared', 'is_active' => 0);
+        }
+    }
+
+    /**
+     * Batch update all cart states
+     */
+    public static function update_all_cart_states()
+    {
+        global $wpdb;
+        $table_name = WC_Cart_Tracker_Database::get_table_name();
+
+        $active_cutoff = date('Y-m-d H:i:s', strtotime('-' . self::ACTIVE_THRESHOLD . ' hours'));
+        $recoverable_cutoff = date('Y-m-d H:i:s', strtotime('-' . self::RECOVERABLE_THRESHOLD . ' hours'));
+        $abandoned_cutoff = date('Y-m-d H:i:s', strtotime('-' . self::ABANDONED_THRESHOLD . ' hours'));
+
+        // Update active -> recoverable
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_name} 
+            SET cart_status = 'recoverable', is_active = 0 
+            WHERE cart_status = 'active' 
+            AND last_updated < %s 
+            AND last_updated >= %s",
+            $active_cutoff,
+            $recoverable_cutoff
+        ));
+
+        // Update recoverable -> abandoned
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_name} 
+            SET cart_status = 'abandoned', is_active = 0 
+            WHERE cart_status = 'recoverable' 
+            AND last_updated < %s 
+            AND last_updated >= %s",
+            $recoverable_cutoff,
+            $abandoned_cutoff
+        ));
+
+        // Update abandoned -> cleared
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_name} 
+            SET cart_status = 'cleared', is_active = 0 
+            WHERE cart_status = 'abandoned' 
+            AND last_updated < %s",
+            $abandoned_cutoff
+        ));
+
+        // Ensure converted/deleted have is_active = 0
+        $wpdb->query(
+            "UPDATE {$table_name} 
+            SET is_active = 0 
+            WHERE cart_status IN ('converted', 'deleted') 
+            AND is_active = 1"
+        );
+
+        return true;
     }
 }

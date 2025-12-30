@@ -86,4 +86,41 @@ class WC_Cart_Tracker
         </div>
         <?php
     }
+    /**
+     * Schedule cart state updates (every 6 hours)
+     */
+    function wc_cart_tracker_schedule_state_updates()
+    {
+        if (!wp_next_scheduled('wc_cart_tracker_update_states')) {
+            wp_schedule_event(time(), 'sixhourly', 'wc_cart_tracker_update_states');
+        }
+    }
 }
+add_action('wp', 'wc_cart_tracker_schedule_state_updates');
+
+/**
+ * Add custom cron schedule for 6-hour intervals
+ */
+add_filter('cron_schedules', function ($schedules) {
+    $schedules['sixhourly'] = array(
+        'interval' => 6 * HOUR_IN_SECONDS,
+        'display' => __('Every 6 Hours', 'wc-all-cart-tracker')
+    );
+    return $schedules;
+});
+
+/**
+ * Run cart state updates
+ */
+function wc_cart_tracker_run_state_updates()
+{
+    if (class_exists('WC_Cart_Tracker_Tracking')) {
+        WC_Cart_Tracker_Tracking::update_all_cart_states();
+
+        // Clear analytics cache
+        if (class_exists('WC_Cart_Tracker_Analytics')) {
+            WC_Cart_Tracker_Analytics::clear_cache();
+        }
+    }
+}
+add_action('wc_cart_tracker_update_states', 'wc_cart_tracker_run_state_updates');
