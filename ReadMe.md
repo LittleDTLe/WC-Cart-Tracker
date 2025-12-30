@@ -179,6 +179,17 @@ Navigate to **WooCommerce → Cart Tracker** to access:
   - **Deleted Carts** - Carts manually cleared by users
   - **Overall Revenue Potential** - Total value of carts updated in last 7 days
 
+### Cart State Breakdown
+
+The dashboard includes a visual breakdown of all cart states:
+
+- **Active** - Recently Updated Carts (<24 hours)
+- **Recoverable** - Carts between 24 hours and 7 days old
+- **Abandoned** - Carts between 7 days and 15 days old
+- **Cleared** - Carts older than 15 days
+- **Deleted** - Carts manually emptied by the user
+- **Converted** - Carts that became orders
+
 #### Detailed Analytics
 
 - **Average Cart Value** - Compare active vs converted cart averages
@@ -321,7 +332,7 @@ Navigate to **WooCommerce → Scheduled Exports** to automate your reporting:
      - Enter recipient email addresses (one per line)
      - Supports multiple recipients
      - File sent as email attachment
-   - **FTP/SFTP Upload:**
+   - **FTP/SFTP Upload:** **(Not yet tested)**
      - FTP Host address
      - FTP Username
      - FTP Password
