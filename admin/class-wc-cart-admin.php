@@ -54,6 +54,15 @@ class WC_Cart_Tracker_Admin
             'wc-cart-scheduled-exports',
             array(WC_Cart_Tracker_Scheduled_Export::get_instance(), 'render_scheduled_exports_page')
         );
+
+        add_submenu_page(
+            'woocommerce',
+            __('Abandoned Cart Emails', 'wc-all-cart-tracker'),
+            __('Abandoned Emails', 'wc-all-cart-tracker'),
+            'manage_woocommerce',
+            'wc-cart-abandoned-emails',
+            array($this, 'render_abandoned_emails_page')
+        );
     }
 
     public function enqueue_admin_assets($hook)
@@ -318,5 +327,9 @@ class WC_Cart_Tracker_Admin
             'status' => $enabled_state,
             'message' => 'Auto-refresh setting saved.'
         ));
+    }
+    public function render_abandoned_emails_page()
+    {
+        require_once WC_CART_TRACKER_PLUGIN_DIR . 'admin/views/admin-abandoned-emails.php';
     }
 }

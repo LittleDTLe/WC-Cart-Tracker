@@ -100,6 +100,7 @@ function wc_cart_tracker_deactivate_cleanup()
 {
     wp_clear_scheduled_hook('wc_cart_tracker_cleanup');
     wp_clear_scheduled_hook('wc_cart_tracker_update_states');
+    wp_clear_scheduled_hook('wcat_send_abandoned_cart_emails');
 }
 register_deactivation_hook(__FILE__, 'wc_cart_tracker_deactivate_cleanup');
 
