@@ -476,10 +476,3 @@ class WC_Cart_Tracker_Abandoned_Email
         );
     }
 }
-
-// Initialize
-function wc_cart_tracker_init_abandoned_email()
-{
-    return WC_Cart_Tracker_Abandoned_Email::get_instance();
-}
-add_action('plugins_loaded', 'wc_cart_tracker_init_abandoned_email');

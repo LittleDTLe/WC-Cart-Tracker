@@ -30,16 +30,27 @@ add_action('before_woocommerce_init', function () {
 // Initialize the plugin
 function wc_cart_tracker_init()
 {
+    error_log('=== WC CART TRACKER PLUGIN INIT ===');
+
     // Load main tracker class
     require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-tracker.php';
     WC_Cart_Tracker::get_instance();
+    error_log('Main tracker class loaded');
 
-    // CRITICAL: Initialize scheduled exports AFTER plugins_loaded
+    // Load scheduled exports
     require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-scheduled-export.php';
     $scheduled_export = WC_Cart_Tracker_Scheduled_Export::get_instance();
+    error_log('Scheduled Export loaded');
 
-    error_log('WC Cart Tracker: Scheduled Export instance created');
-    error_log('WC Cart Tracker: Instance class = ' . get_class($scheduled_export));
+    // Load abandoned email class 
+    require_once WC_CART_TRACKER_PLUGIN_DIR . 'includes/class-wc-cart-abandoned-email.php';
+    $abandoned_email = WC_Cart_Tracker_Abandoned_Email::get_instance();
+    error_log('Abandoned Email loaded: ' . (is_object($abandoned_email) ? 'YES' : 'NO'));
+
+    // Verify AJAX handlers
+    global $wp_filter;
+    error_log('Scheduled export AJAX: ' . (isset($wp_filter['wp_ajax_wcat_test_scheduled_export']) ? 'YES' : 'NO'));
+    error_log('Abandoned email AJAX: ' . (isset($wp_filter['wp_ajax_wcat_test_abandoned_email']) ? 'YES' : 'NO'));
 }
 add_action('plugins_loaded', 'wc_cart_tracker_init');
 
