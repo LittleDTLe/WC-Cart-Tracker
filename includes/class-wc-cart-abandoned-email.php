@@ -31,6 +31,9 @@ class WC_Cart_Tracker_Abandoned_Email
         // Admin hooks
         add_action('admin_init', array($this, 'handle_email_settings'));
 
+        // AJAX handlers for test email
+        add_action('wp_ajax_wcat_test_abandoned_email', array($this, 'ajax_test_email'));
+
         // Schedule cron if enabled
         add_action('wp', array($this, 'schedule_email_cron'));
     }
@@ -351,8 +354,73 @@ class WC_Cart_Tracker_Abandoned_Email
 
         if ($action === 'save_settings') {
             $this->save_email_settings();
-        } elseif ($action === 'send_test') {
-            $this->send_test_email();
+
+            // Redirect to avoid form resubmission
+            wp_safe_redirect(add_query_arg('settings-updated', 'true', admin_url('admin.php?page=wc-cart-abandoned-emails')));
+            exit;
+        }
+    }
+
+    /**
+     * AJAX: Test email handler
+     */
+    public function ajax_test_email()
+    {
+        error_log('=== AJAX TEST ABANDONED EMAIL CALLED ===');
+
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'wcat_abandoned_email_test')) {
+            error_log('ERROR: Nonce verification failed');
+            wp_send_json_error(array('message' => __('Security check failed', 'wc-all-cart-tracker')));
+            return;
+        }
+
+        if (!current_user_can('manage_woocommerce')) {
+            error_log('ERROR: User lacks permissions');
+            wp_send_json_error(array('message' => __('Insufficient permissions', 'wc-all-cart-tracker')));
+            return;
+        }
+
+        $test_email = isset($_POST['test_email']) ? sanitize_email($_POST['test_email']) : '';
+
+        if (!is_email($test_email)) {
+            wp_send_json_error(array('message' => __('Invalid email address', 'wc-all-cart-tracker')));
+            return;
+        }
+
+        error_log('Sending test email to: ' . $test_email);
+
+        // Create fake cart data for testing
+        $fake_cart = (object) array(
+            'customer_name' => 'Test Customer',
+            'customer_email' => $test_email,
+            'cart_total' => 99.99,
+            'cart_content' => wp_json_encode(array(
+                array(
+                    'product_name' => 'Test Product 1',
+                    'quantity' => 2,
+                    'line_total' => 59.98
+                ),
+                array(
+                    'product_name' => 'Test Product 2',
+                    'quantity' => 1,
+                    'line_total' => 39.99
+                ),
+            ))
+        );
+
+        $result = $this->send_single_abandoned_email($fake_cart);
+
+        error_log('Email send result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+
+        if ($result) {
+            wp_send_json_success(array(
+                'message' => sprintf(__('Test email sent successfully to %s', 'wc-all-cart-tracker'), $test_email)
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => __('Failed to send test email. Check debug.log for details.', 'wc-all-cart-tracker')
+            ));
         }
     }
 
@@ -378,61 +446,6 @@ class WC_Cart_Tracker_Abandoned_Email
         // Reschedule cron if needed
         wp_clear_scheduled_hook('wcat_send_abandoned_cart_emails');
         $this->schedule_email_cron();
-    }
-
-    /**
-     * Send test email
-     */
-    private function send_test_email()
-    {
-        $test_email = sanitize_email($_POST['test_email']);
-
-        if (!is_email($test_email)) {
-            add_settings_error(
-                'wcat_abandoned_emails',
-                'invalid_email',
-                __('Invalid email address', 'wc-all-cart-tracker'),
-                'error'
-            );
-            return;
-        }
-
-        // Create fake cart data for testing
-        $fake_cart = (object) array(
-            'customer_name' => 'Test Customer',
-            'customer_email' => $test_email,
-            'cart_total' => 99.99,
-            'cart_content' => wp_json_encode(array(
-                array(
-                    'product_name' => 'Test Product 1',
-                    'quantity' => 2,
-                    'line_total' => 59.98
-                ),
-                array(
-                    'product_name' => 'Test Product 2',
-                    'quantity' => 1,
-                    'line_total' => 39.99
-                ),
-            ))
-        );
-
-        $result = $this->send_single_abandoned_email($fake_cart);
-
-        if ($result) {
-            add_settings_error(
-                'wcat_abandoned_emails',
-                'test_sent',
-                __('Test email sent successfully to ' . $test_email, 'wc-all-cart-tracker'),
-                'success'
-            );
-        } else {
-            add_settings_error(
-                'wcat_abandoned_emails',
-                'test_failed',
-                __('Failed to send test email. Check debug.log', 'wc-all-cart-tracker'),
-                'error'
-            );
-        }
     }
 
     /**

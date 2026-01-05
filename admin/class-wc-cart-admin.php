@@ -75,7 +75,8 @@ class WC_Cart_Tracker_Admin
             !in_array($hook, array(
                 'woocommerce_page_wc-all-cart-tracker',
                 'woocommerce_page_wc-cart-history',
-                'woocommerce_page_wc-cart-scheduled-exports'
+                'woocommerce_page_wc-cart-scheduled-exports',
+                'woocommerce_page_wc-cart-abandoned-emails'
             ))
         ) {
             return;
@@ -99,7 +100,23 @@ class WC_Cart_Tracker_Admin
             WC_CART_TRACKER_VERSION
         );
 
-        // ===== SCHEDULED EXPORTS PAGE - CRITICAL FIX =====
+        // ===== ABANDONED EMAILS PAGE =====
+        if ($hook === 'woocommerce_page_wc-cart-abandoned-emails') {
+            error_log('WCAT: Loading abandoned emails assets');
+
+            // jQuery is already available, just make sure ajaxurl is available
+            wp_localize_script('jquery', 'wcatAbandonedEmail', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wcat_abandoned_email_test'),
+            ));
+
+            error_log('WCAT: Abandoned emails scripts localized');
+
+            // Return early - don't load other scripts
+            return;
+        }
+
+        // ===== SCHEDULED EXPORTS PAGE =====
         if ($hook === 'woocommerce_page_wc-cart-scheduled-exports') {
             error_log('WCAT: Loading scheduled exports assets');
 

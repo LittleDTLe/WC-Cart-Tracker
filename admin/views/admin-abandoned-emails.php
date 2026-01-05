@@ -26,6 +26,18 @@ $stats = WC_Cart_Tracker_Abandoned_Email::get_email_stats();
 
     <?php settings_errors('wcat_abandoned_emails'); ?>
 
+    <?php
+    // DEBUG: Check if AJAX handler is registered
+    global $wp_filter;
+    $ajax_registered = isset($wp_filter['wp_ajax_wcat_test_abandoned_email']);
+
+    if (!$ajax_registered) {
+        echo '<div class="notice notice-warning"><p>';
+        echo '<strong>DEBUG:</strong> AJAX handler NOT registered! Check if class is loaded properly.';
+        echo '</p></div>';
+    }
+    ?>
+
     <div style="max-width: 1200px;">
 
         <!-- Statistics Cards -->
@@ -82,7 +94,7 @@ $stats = WC_Cart_Tracker_Abandoned_Email::get_email_stats();
                 <h2 class="hndle"><?php echo esc_html__('Email Settings', 'wc-all-cart-tracker'); ?></h2>
             </div>
             <div class="inside">
-                <form method="post" action="">
+                <form method="post" action="" id="wcat-email-settings-form">
                     <?php wp_nonce_field('wcat_email_settings', 'wcat_email_nonce'); ?>
                     <input type="hidden" name="wcat_abandoned_email_action" value="save_settings">
 
@@ -214,10 +226,7 @@ $stats = WC_Cart_Tracker_Abandoned_Email::get_email_stats();
                 <h2 class="hndle"><?php echo esc_html__('Send Test Email', 'wc-all-cart-tracker'); ?></h2>
             </div>
             <div class="inside">
-                <form method="post" action="">
-                    <?php wp_nonce_field('wcat_email_settings', 'wcat_email_nonce'); ?>
-                    <input type="hidden" name="wcat_abandoned_email_action" value="send_test">
-
+                <div id="wcat-test-email-form">
                     <table class="form-table">
                         <tbody>
                             <tr>
@@ -227,7 +236,7 @@ $stats = WC_Cart_Tracker_Abandoned_Email::get_email_stats();
                                     </label>
                                 </th>
                                 <td>
-                                    <input type="email" name="test_email" id="test_email"
+                                    <input type="email" name="test_email" id="wcat-test-email-input"
                                         value="<?php echo esc_attr(get_option('admin_email')); ?>" class="regular-text"
                                         required>
                                     <p class="description">
@@ -239,11 +248,12 @@ $stats = WC_Cart_Tracker_Abandoned_Email::get_email_stats();
                     </table>
 
                     <p class="submit">
-                        <button type="submit" class="button button-secondary">
+                        <button type="button" id="wcat-send-test-email" class="button button-secondary">
                             <?php echo esc_html__('Send Test Email', 'wc-all-cart-tracker'); ?>
                         </button>
+                        <span id="wcat-test-email-status" style="margin-left: 10px;"></span>
                     </p>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -332,3 +342,120 @@ $stats = WC_Cart_Tracker_Abandoned_Email::get_email_stats();
         font-style: italic;
     }
 </style>
+
+<script>
+    jQuery(document).ready(function ($) {
+        console.log('=== WCAT Abandoned Email Page Loaded ===');
+        console.log('ajaxurl:', ajaxurl);
+
+        // AJAX Test Email Handler
+        $('#wcat-send-test-email').on('click', function (e) {
+            e.preventDefault();
+
+            console.log('Test email button clicked');
+
+            const $button = $(this);
+            const $status = $('#wcat-test-email-status');
+            const testEmail = $('#wcat-test-email-input').val();
+
+            console.log('Test email address:', testEmail);
+
+            if (!testEmail) {
+                alert('<?php echo esc_js(__('Please enter an email address', 'wc-all-cart-tracker')); ?>');
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(testEmail)) {
+                alert('<?php echo esc_js(__('Please enter a valid email address', 'wc-all-cart-tracker')); ?>');
+                return;
+            }
+
+            // Disable button and show loading
+            $button.prop('disabled', true).text('<?php echo esc_js(__('Sending...', 'wc-all-cart-tracker')); ?>');
+            $status.html('<span style="color: #666;">⏳ Processing...</span>');
+
+            const ajaxData = {
+                action: 'wcat_test_abandoned_email',
+                nonce: '<?php echo wp_create_nonce('wcat_abandoned_email_test'); ?>',
+                test_email: testEmail
+            };
+
+            console.log('Sending AJAX request:', ajaxData);
+            console.log('AJAX URL:', ajaxurl);
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: ajaxData,
+                timeout: 30000, // 30 second timeout
+                success: function (response) {
+                    console.log('AJAX Success - Raw response:', response);
+
+                    if (response.success) {
+                        console.log('Test email sent successfully');
+                        $status.html('<span style="color: #00a32a;">✓ ' + response.data.message + '</span>');
+
+                        // Show success for 5 seconds
+                        setTimeout(function () {
+                            $status.fadeOut(function () {
+                                $(this).html('').show();
+                            });
+                        }, 5000);
+                    } else {
+                        console.error('Test email failed:', response.data);
+                        $status.html('<span style="color: #d63638;">✗ ' + (response.data.message || 'Failed to send') + '</span>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('AJAX Error Details:', {
+                        status: status,
+                        error: error,
+                        statusCode: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        readyState: xhr.readyState
+                    });
+
+                    let errorMsg = 'Network error';
+
+                    if (xhr.status === 0) {
+                        errorMsg = 'Cannot connect to server. Check if WordPress is running.';
+                    } else if (xhr.status === 404) {
+                        errorMsg = 'AJAX endpoint not found (404). Check admin-ajax.php';
+                    } else if (xhr.status === 500) {
+                        errorMsg = 'Server error (500). Check debug.log for PHP errors.';
+                    } else if (status === 'timeout') {
+                        errorMsg = 'Request timeout. Server too slow.';
+                    } else if (status === 'parsererror') {
+                        errorMsg = 'JSON parse error. Check server response.';
+                    }
+
+                    $status.html('<span style="color: #d63638;">✗ ' + errorMsg + '</span>');
+
+                    // Try to parse response if it exists
+                    if (xhr.responseText) {
+                        console.log('Response text:', xhr.responseText);
+                        try {
+                            const parsed = JSON.parse(xhr.responseText);
+                            console.log('Parsed response:', parsed);
+                        } catch (e) {
+                            console.log('Could not parse response as JSON');
+                        }
+                    }
+                },
+                complete: function () {
+                    console.log('AJAX request completed');
+                    $button.prop('disabled', false).text('<?php echo esc_js(__('Send Test Email', 'wc-all-cart-tracker')); ?>');
+                }
+            });
+        });
+
+        // Settings form submission handler
+        $('#wcat-email-settings-form').on('submit', function (e) {
+            console.log('Settings form submitted');
+            // Let it submit normally
+        });
+    });
+</script>
